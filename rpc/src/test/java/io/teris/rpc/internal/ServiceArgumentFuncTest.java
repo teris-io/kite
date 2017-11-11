@@ -2,9 +2,10 @@
  * Copyright (c) teris.io & Oleg Sklyar, 2017. All rights reserved
  */
 
-package io.teris.rpc.service;
+package io.teris.rpc.internal;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
@@ -30,7 +31,7 @@ import org.junit.rules.ExpectedException;
 import io.teris.rpc.ExportName;
 
 
-public class ArgumentTypeUtilityTest {
+public class ServiceArgumentFuncTest {
 
 	@Rule
 	public ExpectedException exception = ExpectedException.none();
@@ -49,6 +50,8 @@ public class ArgumentTypeUtilityTest {
 		void genericsNonSerializable(@ExportName("list") List<String> list);
 
 		void genericsNonSerializableParam(@ExportName("list") ArrayList<Object> list);
+
+		void emptyName(@ExportName("") String title);
 	}
 
 	interface ArgsVariationService {
@@ -124,11 +127,21 @@ public class ArgumentTypeUtilityTest {
 	}
 
 	@Test
+	public void arguments_emptyName_throws() throws Exception {
+		CompletableFuture<LinkedHashMap<String, Serializable>> done = new CompletableFuture<>();
+		FailingArgs s = Proxier.get(FailingArgs.class, done);
+		s.emptyName("");
+		exception.expect(ExecutionException.class);
+		exception.expectMessage("Service method argument names must not be empty");
+		done.get();
+	}
+
+	@Test
 	public void arguments_noargs_success() throws Exception {
 		CompletableFuture<LinkedHashMap<String, Serializable>> done = new CompletableFuture<>();
 		ArgsVariationService s = Proxier.get(ArgsVariationService.class, done);
 		s.noargs();
-		assertEquals(0, done.get().size());
+		assertNull(done.get());
 	}
 
 	@Test
@@ -189,7 +202,7 @@ public class ArgumentTypeUtilityTest {
 
 		private final CompletableFuture<LinkedHashMap<String, Serializable>> done;
 
-		private final ArgumentTypeUility argumentTypeUility = new ArgumentTypeUility();
+		private final ServiceArgumentFunc serviceArgumentFunc = new ServiceArgumentFunc();
 
 		Proxier(CompletableFuture<LinkedHashMap<String, Serializable>> done) {
 			this.done = done;
@@ -204,7 +217,7 @@ public class ArgumentTypeUtilityTest {
 		@Override
 		public Object invoke(Object proxy, Method method, Object[] args) {
 			try {
-				done.complete(argumentTypeUility.extractArguments(method, args));
+				done.complete(serviceArgumentFunc.apply(method, args));
 			}
 			catch (Exception ex) {
 				done.completeExceptionally(ex);

@@ -6,7 +6,7 @@ package io.teris.rpc.http;
 
 import javax.annotation.Nonnull;
 
-import io.teris.rpc.service.ServiceFactory;
+import io.teris.rpc.client.ServiceFactory;
 
 
 public class VertxWebServiceExporter implements ServiceFactory {

@@ -2,26 +2,30 @@
  * Copyright (c) teris.io & Oleg Sklyar, 2017. All rights reserved
  */
 
-package io.teris.rpc.service;
+package io.teris.rpc.client;
 
 import java.io.Serializable;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
-import java.lang.reflect.Parameter;
 import java.lang.reflect.Type;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.function.BiFunction;
+import java.util.function.Function;
 
 import io.teris.rpc.Deserializer;
 import io.teris.rpc.Serializer;
 import io.teris.rpc.Transporter;
 import io.teris.rpc.context.CallerContext;
 import io.teris.rpc.context.ContextAware;
+import io.teris.rpc.internal.ServiceArgumentFunc;
+import io.teris.rpc.internal.ServiceReturnTypeFunc;
+import io.teris.rpc.internal.ServiceRouteFunc;
 
 
-class RemoteInvocationHandler implements InvocationHandler {
+class RemoteInvocation implements InvocationHandler {
 
 	private final Serializer serializer;
 
@@ -29,9 +33,14 @@ class RemoteInvocationHandler implements InvocationHandler {
 
 	private final Map<String, Deserializer> deserializerMap;
 
-	private final ReturnTypeUtility returnTypeUtility = new ReturnTypeUtility();
+	private final Function<Method, String> serviceRouteFunc = new ServiceRouteFunc();
 
-	RemoteInvocationHandler(Serializer serializer, Transporter transporter, Map<String, Deserializer> deserializerMap) {
+	private final BiFunction<Method, Object[], LinkedHashMap<String, Serializable>> serviceArgumentFunc = new ServiceArgumentFunc();
+
+	private final Function<Method, Type> serviceReturnTypeFunc = new ServiceReturnTypeFunc();
+
+
+	RemoteInvocation(Serializer serializer, Transporter transporter, Map<String, Deserializer> deserializerMap) {
 		this.serializer = serializer;
 		this.transporter = transporter;
 		this.deserializerMap = deserializerMap;
@@ -64,12 +73,12 @@ class RemoteInvocationHandler implements InvocationHandler {
 
 	private <RS extends Serializable> CompletableFuture<RS> doInvoke(Object proxy, Method method, Object[] args) {
 		try {
-			Type type = returnTypeUtility.extractReturnType(method);
+			Type type = serviceReturnTypeFunc.apply(method);
 
-			LinkedHashMap<String, Serializable> payload = getPayload(method, args);
-			byte[] data = serializer.serialize(payload);
+			LinkedHashMap<String, Serializable> payload = serviceArgumentFunc.apply(method, args);
+			byte[] data = payload != null ? serializer.serialize(payload) : null;
 
-			String routingKey = getRoutingKey(proxy, method);
+			String routingKey = serviceRouteFunc.apply(method);
 			CallerContext callerContext = getCallerContext(proxy);
 
 			CompletableFuture<byte[]> promise =	transporter.transport(routingKey, callerContext, data);
@@ -80,20 +89,6 @@ class RemoteInvocationHandler implements InvocationHandler {
 			res.completeExceptionally(ex);
 			return res;
 		}
-	}
-
-	LinkedHashMap<String, Serializable> getPayload(Method method, Object[] args) {
-		LinkedHashMap<String, Serializable> payload = new LinkedHashMap<>();
-		for (int i = 0; i < method.getParameterCount(); i++) {
-			Parameter param = method.getParameters()[i];
-			payload.put(param.getName(), (Serializable) args[i]);
-		}
-		return payload;
-	}
-
-	String getRoutingKey(Object proxy, Method method) {
-		// FIXME account for ExportName and ExportPath
-		return proxy.getClass().getCanonicalName().toLowerCase() + "." + method.getName();
 	}
 
 	CallerContext getCallerContext(Object proxy) {

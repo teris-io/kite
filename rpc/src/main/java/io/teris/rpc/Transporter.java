@@ -6,10 +6,14 @@ package io.teris.rpc;
 
 import java.util.concurrent.CompletableFuture;
 
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
+
 import io.teris.rpc.context.CallerContext;
 
 
 public interface Transporter {
 
-	CompletableFuture<byte[]> transport(String routingKey, CallerContext callerContext, byte[] data);
+	@Nonnull
+	CompletableFuture<byte[]> transport(@Nonnull String routingKey, @Nonnull CallerContext callerContext, @Nullable byte[] data);
 }

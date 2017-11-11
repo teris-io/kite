@@ -2,7 +2,7 @@
  * Copyright (c) teris.io & Oleg Sklyar, 2017. All rights reserved
  */
 
-package io.teris.rpc.service.fixture;
+package io.teris.rpc.testfixture;
 
 import java.io.Serializable;
 import javax.annotation.Nonnull;

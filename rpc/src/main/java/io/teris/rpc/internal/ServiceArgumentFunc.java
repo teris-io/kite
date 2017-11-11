@@ -2,7 +2,7 @@
  * Copyright (c) teris.io & Oleg Sklyar, 2017. All rights reserved
  */
 
-package io.teris.rpc.service;
+package io.teris.rpc.internal;
 
 import java.io.Serializable;
 import java.lang.reflect.Method;
@@ -11,15 +11,39 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.WildcardType;
 import java.util.LinkedHashMap;
+import java.util.function.BiFunction;
+
+import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 import io.teris.rpc.ExportName;
 
 
-class ArgumentTypeUility {
+/**
+ * Defines the function to extract and validate service method arguments used e.g.
+ * by the client-side invocation handler to prepare arguments for transport.
+ */
+public class ServiceArgumentFunc
+	implements BiFunction<Method, Object[], LinkedHashMap<String, Serializable>> {
 
-	LinkedHashMap<String, Serializable> extractArguments(Method method, Object[] args) {
+	@Nullable
+	@Override
+	public LinkedHashMap<String, Serializable> apply(@Nonnull Method method, @Nullable Object[] args) {
+		int paramCount = method.getParameterCount();
+		if (args == null) {
+			if (paramCount != 0) {
+				throw new IllegalStateException(String.format("Internal error: Missing arguments for the service method '%s'",
+					method.getName()));
+			}
+			return null;
+		}
+		if (paramCount != args.length) {
+			throw new IllegalStateException(String.format("Internal error: Incorrect number of arguments for the service " +
+				"method '%s', expected %d, found %d", method.getName(), Integer.valueOf(paramCount), Integer.valueOf(args.length)));
+		}
+
 		LinkedHashMap<String, Serializable> payload = new LinkedHashMap<>();
-		for (int i = 0; i < method.getParameterCount(); i++) {
+		for (int i = 0; i < paramCount; i++) {
 			Parameter param = method.getParameters()[i];
 			validate(method, param.getParameterizedType());
 			String name = param.getName();

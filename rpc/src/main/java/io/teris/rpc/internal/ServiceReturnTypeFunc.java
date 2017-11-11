@@ -2,7 +2,7 @@
  * Copyright (c) teris.io & Oleg Sklyar, 2017. All rights reserved
  */
 
-package io.teris.rpc.service;
+package io.teris.rpc.internal;
 
 import java.io.Serializable;
 import java.lang.reflect.Method;
@@ -10,11 +10,19 @@ import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.WildcardType;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
+import javax.annotation.Nonnull;
 
 
-class ReturnTypeUtility {
+/**
+ * Defines the function to extract and validate the service method return type used e.g.
+ * by the client-side invocation handler to deserialize the response from a remote call.
+ */
+public class ServiceReturnTypeFunc implements Function<Method, Type> {
 
-	Type extractReturnType(Method method) {
+	@Nonnull
+	@Override
+	public Type apply(@Nonnull Method method) {
 		Type returnType = method.getGenericReturnType();
 		if (returnType instanceof ParameterizedType && CompletableFuture.class.isAssignableFrom(method.getReturnType())) {
 			returnType = ((ParameterizedType) returnType).getActualTypeArguments()[0];

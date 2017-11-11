@@ -4,5 +4,7 @@
 
 package io.teris.rpc.internal;
 
-public class RpcRequest {
+public interface ServiceRouteFuncTestService {
+
+	void foo();
 }

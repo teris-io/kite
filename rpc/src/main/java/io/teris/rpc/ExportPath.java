@@ -19,7 +19,13 @@ import java.lang.annotation.Target;
 public @interface ExportPath {
 
 	/**
-	 * The dot-separated path under which to export the element.
+	 * The dot-separated path to use instead of replace is replace given or instead of full default.
+	 * If empty, then only used in part-replacement.
 	 */
 	String value();
+
+	/**
+	 * The dot-separated path to remove from the original (package.className{-Service}.toLowerCase())
+	 */
+	String replace() default "";
 }

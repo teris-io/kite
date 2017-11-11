@@ -2,7 +2,7 @@
  * Copyright (c) teris.io & Oleg Sklyar, 2017. All rights reserved
  */
 
-package io.teris.rpc.service;
+package io.teris.rpc.internal;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
@@ -26,7 +26,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 
-public class ReturnTypeUtilityTest {
+public class ServiceReturnTypeFuncTest {
 
 	@Rule
 	public ExpectedException exception = ExpectedException.none();
@@ -343,7 +343,7 @@ public class ReturnTypeUtilityTest {
 
 		private final RS response;
 
-		private final ReturnTypeUtility returnTypeUtility = new ReturnTypeUtility();
+		private final ServiceReturnTypeFunc serviceReturnTypeFunc = new ServiceReturnTypeFunc();
 
 		Proxier(RS response) {
 			this.response = response;
@@ -376,7 +376,7 @@ public class ReturnTypeUtilityTest {
 		private CompletableFuture<RS> doInvoke(Method method) {
 			CompletableFuture<RS> res = new CompletableFuture<>();
 			try {
-				returnTypeUtility.extractReturnType(method);
+				serviceReturnTypeFunc.apply(method);
 				res.complete(response);
 			}
 			catch (Exception ex) {
