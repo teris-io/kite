@@ -87,7 +87,7 @@ public class ReturnTypeUtilityTest {
 
 		NonGenericsReturnValueService s = Proxier.get(NonGenericsReturnValueService.class, data);
 		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Service return value types must implement serializable or be void");
+		exception.expectMessage("Return type of the service method 'nonSerializable' must implement Serializable or be void/Void");
 		s.nonSerializable();
 	}
 
@@ -97,7 +97,7 @@ public class ReturnTypeUtilityTest {
 
 		NonGenericsReturnValueService s = Proxier.get(NonGenericsReturnValueService.class, data);
 		exception.expect(ExecutionException.class);
-		exception.expectMessage("Service return value types must implement serializable or be void");
+		exception.expectMessage("java.lang.IllegalArgumentException: Return type of the service method 'nonSerializableAsync' must implement Serializable or be void/Void");
 		s.nonSerializableAsync().get();
 	}
 
@@ -275,7 +275,7 @@ public class ReturnTypeUtilityTest {
 
 		GenericsReturnValueService s = Proxier.get(GenericsReturnValueService.class, data);
 		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Service return value types must implement serializable or be void");
+		exception.expectMessage("Return type of the service method 'genericIface' must implement Serializable or be void/Void");
 		s.genericIface();
 	}
 
@@ -287,7 +287,7 @@ public class ReturnTypeUtilityTest {
 
 		GenericsReturnValueService s = Proxier.get(GenericsReturnValueService.class, data);
 		exception.expect(ExecutionException.class);
-		exception.expectMessage("Service return value types must implement serializable or be void");
+		exception.expectMessage("Return type of the service method 'genericIfaceAsync' must implement Serializable or be void/Void");
 		s.genericIfaceAsync().get();
 	}
 
@@ -299,7 +299,7 @@ public class ReturnTypeUtilityTest {
 
 		GenericsReturnValueService s = Proxier.get(GenericsReturnValueService.class, data);
 		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Service return value types must implement serializable or be void");
+		exception.expectMessage("Return type of the service method 'objectCollection' must implement Serializable or be void/Void");
 		s.objectCollection();
 	}
 
@@ -311,7 +311,7 @@ public class ReturnTypeUtilityTest {
 
 		GenericsReturnValueService s = Proxier.get(GenericsReturnValueService.class, data);
 		exception.expect(ExecutionException.class);
-		exception.expectMessage("Service return value types must implement serializable or be void");
+		exception.expectMessage("Return type of the service method 'objectCollectionAsync' must implement Serializable or be void/Void");
 		s.objectCollectionAsync().get();
 	}
 
@@ -323,7 +323,7 @@ public class ReturnTypeUtilityTest {
 
 		GenericsReturnValueService s = Proxier.get(GenericsReturnValueService.class, data);
 		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Service return value types must contain no wildcards");
+		exception.expectMessage("Return type of the service method 'wildcard' must contain no wildcards");
 		s.wildcard();
 	}
 
@@ -335,7 +335,7 @@ public class ReturnTypeUtilityTest {
 
 		GenericsReturnValueService s = Proxier.get(GenericsReturnValueService.class, data);
 		exception.expect(ExecutionException.class);
-		exception.expectMessage("Service return value types must contain no wildcards");
+		exception.expectMessage("Return type of the service method 'wildcardAsync' must contain no wildcards");
 		s.wildcardAsync().get();
 	}
 

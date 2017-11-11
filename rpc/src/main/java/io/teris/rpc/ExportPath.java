@@ -19,7 +19,7 @@ import java.lang.annotation.Target;
 public @interface ExportPath {
 
 	/**
-	 * The dot-separated path under which to copyInstance the element.
+	 * The dot-separated path under which to export the element.
 	 */
 	String value();
 }

@@ -15,11 +15,11 @@ import java.lang.annotation.Target;
  * being the default options.
  */
 @Retention(RetentionPolicy.RUNTIME)
-@Target({ElementType.TYPE, ElementType.METHOD})
+@Target({ElementType.TYPE, ElementType.METHOD, ElementType.PARAMETER})
 public @interface ExportName {
 
 	/**
-	 * The name under which to copyInstance the element.
+	 * The name under which to export the element.
 	 */
 	String value();
 }

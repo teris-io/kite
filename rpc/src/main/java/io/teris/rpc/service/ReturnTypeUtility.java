@@ -19,25 +19,29 @@ class ReturnTypeUtility {
 		if (returnType instanceof ParameterizedType && CompletableFuture.class.isAssignableFrom(method.getReturnType())) {
 			returnType = ((ParameterizedType) returnType).getActualTypeArguments()[0];
 		}
-		validate(returnType);
+		validate(method, returnType);
 		return returnType;
 	}
 
-	private void validate(Type type) throws IllegalArgumentException {
+	private void validate(Method method, Type type) throws IllegalArgumentException {
 		if (type instanceof WildcardType) {
-			throw new IllegalArgumentException("Service return value types must contain no wildcards");
+			throw new IllegalArgumentException(String.format("Return type of the service method '%s' must contain no " +
+				"wildcards", method.getName()));
 		}
 		if (type instanceof Class) {
 			Class<?> clazz = (Class<?>) type;
-			if (!void.class.isAssignableFrom(clazz) && !Void.class.isAssignableFrom(clazz) && !Serializable.class.isAssignableFrom(clazz)) {
-				throw new IllegalArgumentException("Service return value types must implement serializable or be void");
+			boolean isVoid = void.class.isAssignableFrom(clazz) || Void.class.isAssignableFrom(clazz);
+			boolean isSerializable = Serializable.class.isAssignableFrom(clazz);
+			if (!isVoid && !isSerializable) {
+				throw new IllegalArgumentException(String.format("Return type of the service method '%s' must implement " +
+					"Serializable or be void/Void", method.getName()));
 			}
 		}
 		if (type instanceof ParameterizedType) {
 			ParameterizedType parametrizedType = (ParameterizedType) type;
-			validate(parametrizedType.getRawType());
+			validate(method, parametrizedType.getRawType());
 			for (Type subtype: parametrizedType.getActualTypeArguments()) {
-				validate(subtype);
+				validate(method, subtype);
 			}
 		}
 	}
