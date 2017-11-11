@@ -1,0 +1,12 @@
+# build outputs
+bin/
+out/
+build/
+
+# intellij project metadata
+.idea/
+*.iml
+
+# gradle metadata and user-specific settings
+.gradle
+gradle.properties

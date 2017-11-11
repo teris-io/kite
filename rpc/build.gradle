@@ -1,0 +1,10 @@
+plugins.apply(JavaPlugin)
+
+dependencies {
+	compileOnly(findbugsModule)
+
+	testCompileOnly(findbugsModule)
+	testCompile(junitModule)
+	testCompile(mockitoModule)
+	testCompile(jacksonDatabindModule)
+}
