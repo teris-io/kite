@@ -2,10 +2,9 @@
  * Copyright (c) teris.io & Oleg Sklyar, 2017. All rights reserved
  */
 
-package io.teris.rpc.client;
+package io.teris.rpc;
 
 import java.io.Serializable;
-import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.util.LinkedHashMap;
@@ -14,18 +13,19 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.function.BiFunction;
 import java.util.function.Function;
+import javax.annotation.Nonnull;
 
-import io.teris.rpc.Deserializer;
-import io.teris.rpc.Serializer;
-import io.teris.rpc.Transporter;
-import io.teris.rpc.context.CallerContext;
-import io.teris.rpc.context.ContextAware;
 import io.teris.rpc.internal.ServiceArgumentFunc;
 import io.teris.rpc.internal.ServiceReturnTypeFunc;
 import io.teris.rpc.internal.ServiceRouteFunc;
 
 
-class RemoteInvocation implements InvocationHandler {
+/**
+ * Defines an InvocationHandler that proxies service calls to a remote implementation
+ * serializing the request using the serializer, transporting the data using the transport
+ * and deserializing the resposnse using a deserializer from the deserializerMap.
+ */
+class RemoteProxy<S> extends ContextAwareInvocationHandler<S, RemoteProxy> {
 
 	private final Serializer serializer;
 
@@ -39,17 +39,22 @@ class RemoteInvocation implements InvocationHandler {
 
 	private final Function<Method, Type> serviceReturnTypeFunc = new ServiceReturnTypeFunc();
 
-
-	RemoteInvocation(Serializer serializer, Transporter transporter, Map<String, Deserializer> deserializerMap) {
+	RemoteProxy(Class<S> serviceClass, Context context, Serializer serializer, Transporter transporter, Map<String, Deserializer> deserializerMap) {
+		super(serviceClass, context);
 		this.serializer = serializer;
 		this.transporter = transporter;
 		this.deserializerMap = deserializerMap;
 	}
 
+	@Nonnull
 	@Override
-	public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
+	public RemoteProxy newInContext(@Nonnull Context context) {
+		return new RemoteProxy<>(serviceClass, context, serializer, transporter, deserializerMap);
+	}
 
-		CompletableFuture<? extends Serializable> promise = doInvoke(proxy, method, args);
+	@Override
+	protected Object serviceInvoke(Object proxy, Method method, Object[] args) throws Throwable {
+		CompletableFuture<? extends Serializable> promise = doInvoke(method, args);
 		if (CompletableFuture.class.isAssignableFrom(method.getReturnType())) {
 			return promise;
 		}
@@ -71,7 +76,7 @@ class RemoteInvocation implements InvocationHandler {
 		}
 	}
 
-	private <RS extends Serializable> CompletableFuture<RS> doInvoke(Object proxy, Method method, Object[] args) {
+	private <RS extends Serializable> CompletableFuture<RS> doInvoke(Method method, Object[] args) {
 		try {
 			Type type = serviceReturnTypeFunc.apply(method);
 
@@ -79,9 +84,8 @@ class RemoteInvocation implements InvocationHandler {
 			byte[] data = payload != null ? serializer.serialize(payload) : null;
 
 			String routingKey = serviceRouteFunc.apply(method);
-			CallerContext callerContext = getCallerContext(proxy);
 
-			CompletableFuture<byte[]> promise =	transporter.transport(routingKey, callerContext, data);
+			CompletableFuture<byte[]> promise =	transporter.transport(routingKey, context, data);
 			return promise.thenApply(res -> res == null ? null : serializer.deserializer().deserialize(res, type));
 		}
 		catch (Exception ex) {
@@ -89,15 +93,6 @@ class RemoteInvocation implements InvocationHandler {
 			res.completeExceptionally(ex);
 			return res;
 		}
-	}
-
-	CallerContext getCallerContext(Object proxy) {
-		// FIXME: add request Id and correlationId
-		// FIXME: add getting this out out field of a getter
-		if (proxy instanceof ContextAware) {
-			return ((ContextAware) proxy).callerContext();
-		}
-		return new CallerContext();
 	}
 }
 

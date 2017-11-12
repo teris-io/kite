@@ -9,11 +9,9 @@ import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import io.teris.rpc.context.CallerContext;
-
 
 public interface Transporter {
 
 	@Nonnull
-	CompletableFuture<byte[]> transport(@Nonnull String routingKey, @Nonnull CallerContext callerContext, @Nullable byte[] data);
+	CompletableFuture<byte[]> transport(@Nonnull String routingKey, @Nonnull Context context, @Nullable byte[] data);
 }
