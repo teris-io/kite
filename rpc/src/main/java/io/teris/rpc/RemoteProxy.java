@@ -10,41 +10,37 @@ import java.lang.reflect.Method;
 import java.lang.reflect.Type;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Future;
 
 import io.teris.rpc.internal.ProxyMethodUtil;
 
 
 /**
  * Defines an InvocationHandler that proxies service calls to a remote implementation
- * serializing the request using the serializer, transporting the data using the transport
+ * serializing the request using the serializer, transporting the data using the requester
  * and deserializing the resposnse using a deserializer from the deserializerMap.
  */
-class RemoteProxy<S> implements InvocationHandler {
-
-	private final Class<S> serviceClass;
-
-	private final Context context;
+class RemoteProxy implements InvocationHandler {
 
 	private final Serializer serializer;
 
-	private final Transporter transporter;
+	private final Requester requester;
 
 	private final Map<String, Deserializer> deserializerMap;
 
-	RemoteProxy(Class<S> serviceClass, Context context, Serializer serializer, Transporter transporter, Map<String, Deserializer> deserializerMap) {
-		this.serviceClass = serviceClass;
-		this.context = context;
+	RemoteProxy(Serializer serializer, Requester requester, Map<String, Deserializer> deserializerMap) {
 		this.serializer = serializer;
-		this.transporter = transporter;
+		this.requester = requester;
 		this.deserializerMap = deserializerMap;
 	}
 
 	@Override
 	public Object invoke(Object proxy, Method method, Object[] args) throws Throwable {
 		CompletableFuture<? extends Serializable> promise = doInvoke(method, args);
-		if (CompletableFuture.class.isAssignableFrom(method.getReturnType())) {
+		if (Future.class.isAssignableFrom(method.getReturnType())) {
 			return promise;
 		}
 
@@ -68,14 +64,19 @@ class RemoteProxy<S> implements InvocationHandler {
 	private <RS extends Serializable> CompletableFuture<RS> doInvoke(Method method, Object[] args) {
 		try {
 			Type type = ProxyMethodUtil.returnType(method);
-
-			LinkedHashMap<String, Serializable> payload = ProxyMethodUtil.arguments(method, args);
+			String routingKey = ProxyMethodUtil.route(method);
+			Entry<Context, LinkedHashMap<String, Serializable>> parsedArgs = ProxyMethodUtil.arguments(method, args);
+			Context context = parsedArgs.getKey();
+			LinkedHashMap<String, Serializable> payload = parsedArgs.getValue();
 			byte[] data = payload != null ? serializer.serialize(payload) : null;
 
-			String routingKey = ProxyMethodUtil.route(method);
-
-			CompletableFuture<byte[]> promise =	transporter.transport(routingKey, context, data);
-			return promise.thenApply(res -> res == null ? null : serializer.deserializer().deserialize(res, type));
+			CompletableFuture<Entry<Context, byte[]>> responsePromise =	requester.execute(routingKey, context, data);
+			return responsePromise.thenApply(entry -> {
+				Context responseContext = entry.getKey();
+				Deserializer deserializer = deserializerMap.getOrDefault(responseContext.get(Context.CONTENT_TYPE_KEY), serializer.deserializer());
+				byte[] response = entry.getValue();
+				return response == null ? null : deserializer.deserialize(response, type);
+			});
 		}
 		catch (Exception ex) {
 			CompletableFuture<RS> res = new CompletableFuture<>();

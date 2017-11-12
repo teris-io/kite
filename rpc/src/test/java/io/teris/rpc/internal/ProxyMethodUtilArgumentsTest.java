@@ -5,7 +5,6 @@
 package io.teris.rpc.internal;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertSame;
 import static org.junit.Assert.assertTrue;
 
@@ -20,17 +19,22 @@ import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map.Entry;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import javax.rpc.Name;
 
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import io.teris.rpc.Context;
+import io.teris.rpc.Name;
+
 
 public class ProxyMethodUtilArgumentsTest {
+
+	private static final Context context = new Context();
 
 	@Rule
 	public ExpectedException exception = ExpectedException.none();
@@ -38,37 +42,75 @@ public class ProxyMethodUtilArgumentsTest {
 
 	interface FailingArgs {
 
-		void unannotated(@Name("title") String title, Integer unannotated);
+		void noargs();
 
-		void wildcard(@Name("list") ArrayList<?> list);
+		void noContext(@Name("title") String title);
 
-		void nonSerializable(@Name("title") Object title);
+		void emptyContext(Context context);
 
-		void nonSerializableVararg(@Name("key") String key, @Name("values") Object... values);
+		void unannotated(Context context, @Name("title") String title, Integer unannotated);
 
-		void genericsNonSerializable(@Name("list") List<String> list);
+		void wildcard(Context context, @Name("list") ArrayList<?> list);
 
-		void genericsNonSerializableParam(@Name("list") ArrayList<Object> list);
+		void nonSerializable(Context context, @Name("title") Object title);
 
-		void emptyName(@Name("") String title);
+		void nonSerializableVararg(Context context, @Name("key") String key, @Name("values") Object... values);
+
+		void genericsNonSerializable(Context context, @Name("list") List<String> list);
+
+		void genericsNonSerializableParam(Context context, @Name("list") ArrayList<Object> list);
+
+		void emptyName(Context context, @Name("") String title);
 	}
 
 	interface ArgsVariationService {
 
-		void noargs();
+		void contextOnly(Context context);
 
-		void varargsOnly(@Name("ints") Integer... ints);
+		void contextReturned(Context context, @Name("value") Integer value);
 
-		void withVarargs(@Name("title") String title, @Name("key") String key, @Name("ints") Integer... values);
+		void varargsOnly(Context context, @Name("ints") Integer... ints);
 
-		void generics(@Name("map") ArrayList<HashMap<String, Double>> map, @Name("set") HashSet<Integer> set);
+		void withVarargs(Context context, @Name("title") String title, @Name("key") String key, @Name("ints") Integer... values);
+
+		void generics(Context context, @Name("map") ArrayList<HashMap<String, Double>> map, @Name("set") HashSet<Integer> set);
+	}
+
+	@Test
+	public void arguments_noDeclaredContext_throws() throws Exception {
+		CompletableFuture<Entry<Context, LinkedHashMap<String, Serializable>>> done = new CompletableFuture<>();
+		FailingArgs s = Proxier.get(FailingArgs.class, done);
+		s.noContext("title");
+		exception.expect(ExecutionException.class);
+		exception.expectMessage("First argument of the service method 'noContext' must be Context");
+		done.get();
+	}
+
+	@Test
+	public void arguments_missingContext_throws() throws Exception {
+		CompletableFuture<Entry<Context, LinkedHashMap<String, Serializable>>> done = new CompletableFuture<>();
+		FailingArgs s = Proxier.get(FailingArgs.class, done);
+		s.emptyContext(null);
+		exception.expect(ExecutionException.class);
+		exception.expectMessage("First argument of the service method 'emptyContext' must be Context");
+		done.get();
+	}
+
+	@Test
+	public void arguments_noargs_throws() throws Exception {
+		CompletableFuture<Entry<Context, LinkedHashMap<String, Serializable>>> done = new CompletableFuture<>();
+		FailingArgs s = Proxier.get(FailingArgs.class, done);
+		s.noargs();
+		exception.expect(ExecutionException.class);
+		exception.expectMessage("First argument of the service method 'noargs' must be Context");
+		done.get();
 	}
 
 	@Test
 	public void arguments_unannotated_throws() throws Exception {
-		CompletableFuture<LinkedHashMap<String, Serializable>> done = new CompletableFuture<>();
+		CompletableFuture<Entry<Context, LinkedHashMap<String, Serializable>>> done = new CompletableFuture<>();
 		FailingArgs s = Proxier.get(FailingArgs.class, done);
-		s.unannotated("a", Integer.valueOf(25));
+		s.unannotated(context,"a", Integer.valueOf(25));
 		exception.expect(ExecutionException.class);
 		exception.expectMessage("Arguments of the service method 'unannotated' must be annotated with Name");
 		done.get();
@@ -76,9 +118,9 @@ public class ProxyMethodUtilArgumentsTest {
 
 	@Test
 	public void arguments_wildcards_throws() throws Exception {
-		CompletableFuture<LinkedHashMap<String, Serializable>> done = new CompletableFuture<>();
+		CompletableFuture<Entry<Context, LinkedHashMap<String, Serializable>>> done = new CompletableFuture<>();
 		FailingArgs s = Proxier.get(FailingArgs.class, done);
-		s.wildcard(new ArrayList<>());
+		s.wildcard(context, new ArrayList<>());
 		exception.expect(ExecutionException.class);
 		exception.expectMessage("Argument types of the service method 'wildcard' must contain no wildcards");
 		done.get();
@@ -86,9 +128,9 @@ public class ProxyMethodUtilArgumentsTest {
 
 	@Test
 	public void arguments_nonSerializable_throws() throws Exception {
-		CompletableFuture<LinkedHashMap<String, Serializable>> done = new CompletableFuture<>();
+		CompletableFuture<Entry<Context, LinkedHashMap<String, Serializable>>> done = new CompletableFuture<>();
 		FailingArgs s = Proxier.get(FailingArgs.class, done);
-		s.nonSerializable("a");
+		s.nonSerializable(context, "a");
 		exception.expect(ExecutionException.class);
 		exception.expectMessage("Argument types of the service method 'nonSerializable' must implement Serializable or be void");
 		done.get();
@@ -97,9 +139,9 @@ public class ProxyMethodUtilArgumentsTest {
 	@Ignore("FIXME unsure how to get and check type of elements for arrays")
 	@Test
 	public void arguments_nonSerializableVararg_throws() throws Exception {
-		CompletableFuture<LinkedHashMap<String, Serializable>> done = new CompletableFuture<>();
+		CompletableFuture<Entry<Context, LinkedHashMap<String, Serializable>>> done = new CompletableFuture<>();
 		FailingArgs s = Proxier.get(FailingArgs.class, done);
-		s.nonSerializableVararg("a", "b", "c");
+		s.nonSerializableVararg(context, "a", "b", "c");
 		exception.expect(ExecutionException.class);
 		exception.expectMessage("Argument types of the service method 'nonSerializableVararg' must implement Serializable or be void");
 		done.get();
@@ -107,9 +149,9 @@ public class ProxyMethodUtilArgumentsTest {
 
 	@Test
 	public void arguments_genericsNonSerializable_throws() throws Exception {
-		CompletableFuture<LinkedHashMap<String, Serializable>> done = new CompletableFuture<>();
+		CompletableFuture<Entry<Context, LinkedHashMap<String, Serializable>>> done = new CompletableFuture<>();
 		FailingArgs s = Proxier.get(FailingArgs.class, done);
-		s.genericsNonSerializable(new ArrayList<>());
+		s.genericsNonSerializable(context, new ArrayList<>());
 		exception.expect(ExecutionException.class);
 		exception.expectMessage("Argument types of the service method 'genericsNonSerializable' must implement Serializable or be void");
 		done.get();
@@ -117,9 +159,9 @@ public class ProxyMethodUtilArgumentsTest {
 
 	@Test
 	public void arguments_genericsNonSerializableParam_throws() throws Exception {
-		CompletableFuture<LinkedHashMap<String, Serializable>> done = new CompletableFuture<>();
+		CompletableFuture<Entry<Context, LinkedHashMap<String, Serializable>>> done = new CompletableFuture<>();
 		FailingArgs s = Proxier.get(FailingArgs.class, done);
-		s.genericsNonSerializableParam(new ArrayList<>());
+		s.genericsNonSerializableParam(context, new ArrayList<>());
 		exception.expect(ExecutionException.class);
 		exception.expectMessage("Argument types of the service method 'genericsNonSerializableParam' must implement Serializable or be void");
 		done.get();
@@ -127,48 +169,58 @@ public class ProxyMethodUtilArgumentsTest {
 
 	@Test
 	public void arguments_emptyName_throws() throws Exception {
-		CompletableFuture<LinkedHashMap<String, Serializable>> done = new CompletableFuture<>();
+		CompletableFuture<Entry<Context, LinkedHashMap<String, Serializable>>> done = new CompletableFuture<>();
 		FailingArgs s = Proxier.get(FailingArgs.class, done);
-		s.emptyName("");
+		s.emptyName(context, "");
 		exception.expect(ExecutionException.class);
-		exception.expectMessage("Service method argument names must not be empty");
+		exception.expectMessage("Argument names of the service method 'emptyName' must not be empty");
 		done.get();
 	}
 
 	@Test
-	public void arguments_noargs_success() throws Exception {
-		CompletableFuture<LinkedHashMap<String, Serializable>> done = new CompletableFuture<>();
+	public void arguments_contextOnly_success() throws Exception {
+		CompletableFuture<Entry<Context, LinkedHashMap<String, Serializable>>> done = new CompletableFuture<>();
 		ArgsVariationService s = Proxier.get(ArgsVariationService.class, done);
-		s.noargs();
-		assertNull(done.get());
+		s.contextOnly(context);
+		Context actual = done.get().getKey();
+		assertSame(context, actual);
+	}
+
+	@Test
+	public void arguments_contextReturned_success() throws Exception {
+		CompletableFuture<Entry<Context, LinkedHashMap<String, Serializable>>> done = new CompletableFuture<>();
+		ArgsVariationService s = Proxier.get(ArgsVariationService.class, done);
+		s.contextReturned(context, Integer.valueOf(25));
+		Context actual = done.get().getKey();
+		assertSame(context, actual);
 	}
 
 	@Test
 	public void arguments_varargsOnly_success() throws Exception {
-		CompletableFuture<LinkedHashMap<String, Serializable>> done = new CompletableFuture<>();
+		CompletableFuture<Entry<Context, LinkedHashMap<String, Serializable>>> done = new CompletableFuture<>();
 		ArgsVariationService s = Proxier.get(ArgsVariationService.class, done);
-		s.varargsOnly(Integer.valueOf(25), Integer.valueOf(36));
-		LinkedHashMap<String, Serializable> actual = done.get();
+		s.varargsOnly(context, Integer.valueOf(25), Integer.valueOf(36));
+		LinkedHashMap<String, Serializable> actual = done.get().getValue();
 		assertEquals(1, actual.size());
 		assertTrue(Arrays.equals(new Integer[]{Integer.valueOf(25), Integer.valueOf(36)}, (Integer[]) actual.get("ints")));
 	}
 
 	@Test
 	public void arguments_varargsEmpty_success() throws Exception {
-		CompletableFuture<LinkedHashMap<String, Serializable>> done = new CompletableFuture<>();
+		CompletableFuture<Entry<Context, LinkedHashMap<String, Serializable>>> done = new CompletableFuture<>();
 		ArgsVariationService s = Proxier.get(ArgsVariationService.class, done);
-		s.varargsOnly();
-		LinkedHashMap<String, Serializable> actual = done.get();
+		s.varargsOnly(context);
+		LinkedHashMap<String, Serializable> actual = done.get().getValue();
 		assertEquals(1, actual.size());
 		assertTrue(Arrays.equals(new Integer[]{},  (Integer[]) actual.get("ints")));
 	}
 
 	@Test
 	public void arguments_withVarargs_success() throws Exception {
-		CompletableFuture<LinkedHashMap<String, Serializable>> done = new CompletableFuture<>();
+		CompletableFuture<Entry<Context, LinkedHashMap<String, Serializable>>> done = new CompletableFuture<>();
 		ArgsVariationService s = Proxier.get(ArgsVariationService.class, done);
-		s.withVarargs("TestTitle", "TestKey", Integer.valueOf(25), Integer.valueOf(36));
-		LinkedHashMap<String, Serializable> actual = done.get();
+		s.withVarargs(context, "TestTitle", "TestKey", Integer.valueOf(25), Integer.valueOf(36));
+		LinkedHashMap<String, Serializable> actual = done.get().getValue();
 		assertEquals(3, actual.size());
 		Iterator<String> keyIter = actual.keySet().iterator();
 		String key = keyIter.next();
@@ -184,28 +236,28 @@ public class ProxyMethodUtilArgumentsTest {
 
 	@Test
 	public void arguments_generics_success() throws Exception {
-		CompletableFuture<LinkedHashMap<String, Serializable>> done = new CompletableFuture<>();
+		CompletableFuture<Entry<Context, LinkedHashMap<String, Serializable>>> done = new CompletableFuture<>();
 		ArgsVariationService s = Proxier.get(ArgsVariationService.class, done);
 		ArrayList<HashMap<String, Double>> map = new ArrayList<>();
 		map.add(new HashMap<>());
 		map.get(0).put("a", Double.valueOf(25.1));
 		HashSet<Integer> set = new HashSet<>();
 		set.add(Integer.valueOf(31));
-		s.generics(map, set);
-		LinkedHashMap<String, Serializable> actual = done.get();
+		s.generics(context, map, set);
+		LinkedHashMap<String, Serializable> actual = done.get().getValue();
 		assertSame(map, actual.get("map"));
 		assertSame(set, actual.get("set"));
 	}
 
 	private static class Proxier implements InvocationHandler {
 
-		private final CompletableFuture<LinkedHashMap<String, Serializable>> done;
+		private final CompletableFuture<Entry<Context, LinkedHashMap<String, Serializable>>> done;
 
-		Proxier(CompletableFuture<LinkedHashMap<String, Serializable>> done) {
+		Proxier(CompletableFuture<Entry<Context, LinkedHashMap<String, Serializable>>> done) {
 			this.done = done;
 		}
 
-		static <S> S get(Class<S> serviceClass, CompletableFuture<LinkedHashMap<String, Serializable>> done) {
+		static <S> S get(Class<S> serviceClass, CompletableFuture<Entry<Context, LinkedHashMap<String, Serializable>>> done) {
 			@SuppressWarnings("unchecked")
 			S res = (S) Proxy.newProxyInstance(Proxier.class.getClassLoader(), new Class[]{ serviceClass }, new Proxier(done));
 			return res;

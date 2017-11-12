@@ -16,13 +16,13 @@ public class RemoteServiceFactory implements ServiceFactory {
 
 	private final Serializer serializer;
 
-	private final Transporter transporter;
+	private final Requester requester;
 
 	private final Map<String, Deserializer> deserializerMap;
 
-	public RemoteServiceFactory(Serializer serializer, Transporter transporter, Map<String, Deserializer> deserializerMap) {
+	public RemoteServiceFactory(Serializer serializer, Requester requester, Map<String, Deserializer> deserializerMap) {
 		this.serializer = serializer;
-		this.transporter = transporter;
+		this.requester = requester;
 		this.deserializerMap = deserializerMap;
 	}
 
@@ -32,7 +32,7 @@ public class RemoteServiceFactory implements ServiceFactory {
 		try {
 			@SuppressWarnings("unchecked")
 			S res = (S) Proxy.newProxyInstance(getClass().getClassLoader(), new Class[]{ serviceClass },
-				new RemoteProxy<>(serviceClass, new Context(), serializer, transporter, deserializerMap));
+				new RemoteProxy(serializer, requester, deserializerMap));
 			return res;
 		}
 		catch (RuntimeException ex) {

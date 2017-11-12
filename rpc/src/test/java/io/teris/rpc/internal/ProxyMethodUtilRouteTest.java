@@ -16,8 +16,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import javax.rpc.Name;
-import javax.rpc.Service;
+import io.teris.rpc.Name;
+import io.teris.rpc.Service;
 
 
 public class ProxyMethodUtilRouteTest {
@@ -71,14 +71,6 @@ public class ProxyMethodUtilRouteTest {
 		AService s = Proxier.get(AService.class, done);
 		s.emptyServiceRoute();
 		assertEquals("emptyserviceroute", done.get());
-	}
-
-	@Test
-	public void route_standard_success() throws Exception {
-		CompletableFuture<String> done = new CompletableFuture<>();
-		ProxyMethodUtilRouteTestService s = Proxier.get(ProxyMethodUtilRouteTestService.class, done);
-		s.foo();
-		assertEquals("io.teris.rpc.internal.proxymethodutilroutetest.foo", done.get());
 	}
 
 	@Test

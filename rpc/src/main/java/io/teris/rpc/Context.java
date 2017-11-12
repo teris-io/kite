@@ -4,7 +4,6 @@
 
 package io.teris.rpc;
 
-import java.io.Serializable;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
@@ -16,9 +15,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 
-public class Context implements Map<String, String>, Serializable {
-
-	public static volatile Supplier<String> uniqueIdGenerator = UUID.randomUUID()::toString;
+public class Context implements Map<String, String> {
 
 	public static final String REQUEST_ID_KEY = "X-Request-ID";
 
@@ -26,9 +23,14 @@ public class Context implements Map<String, String>, Serializable {
 
 	public static final String CONTENT_TYPE_KEY = "Content-Type";
 
+
+	public static volatile Supplier<String> uniqueIdGenerator = UUID.randomUUID()::toString;
+
+
 	private static final String DEFAULT_CONTENT_TYPE = "application/json";
 
 	private final ConcurrentHashMap<String, String> data = new ConcurrentHashMap<>();
+
 
 	public Context() {
 		this(null);

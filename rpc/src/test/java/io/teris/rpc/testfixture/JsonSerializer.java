@@ -25,7 +25,7 @@ public class JsonSerializer extends JsonSerializerBase implements Serializer {
 
 	@Nonnull
 	@Override
-	public String getContentType() {
+	public String contentType() {
 		return CONTENT_TYPE;
 	}
 

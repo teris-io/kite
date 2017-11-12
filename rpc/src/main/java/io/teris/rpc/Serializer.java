@@ -17,18 +17,18 @@ import javax.annotation.Nonnull;
 public interface Serializer {
 
 	/**
-	 * @return The content type expected and provided by the serializer.
-	 */
-	@Nonnull
-	String getContentType();
-
-	/**
 	 * Serializes the value into a byte array with the predefined content type.
 	 *
 	 * @throws IllegalArgumentException In case if an argument cannot be serialized.
 	 */
 	@Nonnull
 	<CT extends Serializable> byte[] serialize(@Nonnull CT value);
+
+	/**
+	 * @return The content type expected and provided by the serializer.
+	 */
+	@Nonnull
+	String contentType();
 
 	/**
 	 * Provides a matching deserializer.

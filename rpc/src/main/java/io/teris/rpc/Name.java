@@ -2,7 +2,7 @@
  * Copyright (c) teris.io & Oleg Sklyar, 2017. All rights reserved
  */
 
-package javax.rpc;
+package io.teris.rpc;
 
 import java.lang.annotation.ElementType;
 import java.lang.annotation.Retention;

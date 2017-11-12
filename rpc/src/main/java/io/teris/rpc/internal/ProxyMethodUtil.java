@@ -10,14 +10,17 @@ import java.lang.reflect.Parameter;
 import java.lang.reflect.ParameterizedType;
 import java.lang.reflect.Type;
 import java.lang.reflect.WildcardType;
+import java.util.AbstractMap.SimpleEntry;
 import java.util.LinkedHashMap;
+import java.util.Map.Entry;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
-import javax.rpc.Name;
-import javax.rpc.Service;
+import io.teris.rpc.Context;
+import io.teris.rpc.Name;
+import io.teris.rpc.Service;
 
 
 public final class ProxyMethodUtil {
@@ -41,8 +44,8 @@ public final class ProxyMethodUtil {
 
 		Service serviceAnnot = methodClass.getAnnotation(Service.class);
 		if (serviceAnnot == null) {
-			throw new IllegalStateException(String.format("Missing service annotation %s on class %s",
-				Service.class.getSimpleName(), methodClass.getSimpleName()));
+			throw new IllegalStateException(String.format("Service '%s' must be annotation with @%s",
+				methodClass.getSimpleName(), Service.class.getSimpleName()));
 		}
 
 		String serviceRoute = methodClass.getCanonicalName();
@@ -86,29 +89,40 @@ public final class ProxyMethodUtil {
 		return sb.toString().toLowerCase();
 	}
 
-	@Nullable
-	public static LinkedHashMap<String, Serializable> arguments(@Nonnull Method method, @Nullable Object[] args) {
-		int paramCount = method.getParameterCount();
-		if (args == null) {
-			return null;
+	@Nonnull
+	public static Entry<Context, LinkedHashMap<String, Serializable>> arguments(@Nonnull Method method, @Nullable Object[] args) {
+		validateArgumentTypes(method);
+		if (args == null || args.length < 1 || args[0] == null) {
+			throw new IllegalArgumentException(String.format("First argument of the service method '%s' must be %s",
+				method.getName(), Context.class.getSimpleName()));
 		}
-
+		Context context = (Context) args[0];
 		LinkedHashMap<String, Serializable> payload = new LinkedHashMap<>();
-		for (int i = 0; i < paramCount; i++) {
-			Parameter param = method.getParameters()[i];
-			validateArgumentType(method, param.getParameterizedType());
-			Name nameAnnot = param.getAnnotation(Name.class);
+		for (int i = 1; i < method.getParameterCount(); i++) {
+			Name nameAnnot = method.getParameters()[i].getAnnotation(Name.class);
 			if (nameAnnot == null) {
 				throw new IllegalArgumentException(String.format("Arguments of the service method '%s' must be annotated " +
 					"with Name or compiler must preserve parameter names (-parameter)", method.getName()));
 			}
 			String name = nameAnnot.value();
 			if ("".equals(name.trim())) {
-				throw new IllegalArgumentException("Service method argument names must not be empty");
+				throw new IllegalArgumentException(String.format("Argument names of the service method '%s' must not be empty",
+					method.getName()));
 			}
 			payload.put(name, (Serializable) args[i]);
 		}
-		return payload;
+		return new SimpleEntry<>(context, payload);
+	}
+
+	static void validateArgumentTypes(Method method) throws IllegalArgumentException {
+		if (method.getParameterCount() == 0 || !Context.class.isAssignableFrom(method.getParameters()[0].getType())) {
+			throw new IllegalArgumentException(String.format("First argument of the service method '%s' must be %s",
+				method.getName(), Context.class.getSimpleName()));
+		}
+		for (int i = 1; i < method.getParameterCount(); i++) {
+			Parameter param = method.getParameters()[i];
+			validateArgumentType(method, param.getParameterizedType());
+		}
 	}
 
 	private static void validateArgumentType(Method method, Type type) throws IllegalArgumentException {
