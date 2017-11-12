@@ -2,6 +2,7 @@ plugins.apply(JavaPlugin)
 
 dependencies {
 	compileOnly(findbugsModule)
+	compile(project(":annotations"))
 
 	testCompileOnly(findbugsModule)
 	testCompile(junitModule)

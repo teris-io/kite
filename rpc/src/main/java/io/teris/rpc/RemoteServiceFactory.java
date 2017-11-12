@@ -31,7 +31,7 @@ public class RemoteServiceFactory implements ServiceFactory {
 	public <S> S get(@Nonnull Class<S> serviceClass) throws InstantiationException {
 		try {
 			@SuppressWarnings("unchecked")
-			S res = (S) Proxy.newProxyInstance(getClass().getClassLoader(), new Class[]{ serviceClass, ContextAware.class },
+			S res = (S) Proxy.newProxyInstance(getClass().getClassLoader(), new Class[]{ serviceClass },
 				new RemoteProxy<>(serviceClass, new Context(), serializer, transporter, deserializerMap));
 			return res;
 		}

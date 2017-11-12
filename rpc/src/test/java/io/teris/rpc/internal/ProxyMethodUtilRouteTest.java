@@ -16,59 +16,59 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import io.teris.rpc.ExportName;
-import io.teris.rpc.ExportPath;
+import javax.rpc.Name;
+import javax.rpc.Service;
 
 
-public class ServiceRouteFuncTest {
+public class ProxyMethodUtilRouteTest {
 
 	@Rule
 	public ExpectedException exception = ExpectedException.none();
 
-	@ExportPath(replace = "io.teris.rpc.internal.ServiceRouteFuncTest", value = "")
-	interface Service {
+	@Service(replace = "io.teris.rpc.internal.ProxyMethodUtilRouteTest.A")
+	interface AService {
 
-		@ExportName("")
+		@Name("")
 		void emptyFullRoute();
 
 		void emptyServiceRoute();
 	}
 
+	@Service
 	interface NestedService {
 		void foo();
 	}
 
-	@ExportPath(value = "some.path")
+	@Service(value = "some.path")
 	interface PathOvewriteService {
 		void foo();
 	}
 
-	@ExportPath(replace = "internal.ServiceRouteFuncTest", value = "some.path")
+	@Service(replace = "internal.ProxyMethodUtilRouteTest", value = "some.path")
 	interface PartSubstituteService {
 		void foo();
 	}
 
-	@ExportName("thing")
-	@ExportPath(replace = "internal.ServiceRouteFuncTest", value = "some.path")
-	interface NoThingService {
-		@ExportName("foo")
+	@Service(replace = "internal.ProxyMethodUtilRouteTest", value = "some.path")
+	interface ThingService {
+		@Name("foo")
 		void nofoo();
 	}
 
 	@Test
 	public void route_empty_throws() throws Exception {
 		CompletableFuture<String> done = new CompletableFuture<>();
-		Service s = Proxier.get(Service.class, done);
+		AService s = Proxier.get(AService.class, done);
 		s.emptyFullRoute();
 		exception.expect(ExecutionException.class);
-		exception.expectMessage("Empty root for Service.emptyFullRoute");
+		exception.expectMessage("Empty root for AService.emptyFullRoute");
 		done.get();
 	}
 
 	@Test
 	public void route_emptyPath_nonEmptyMethod_success() throws Exception {
 		CompletableFuture<String> done = new CompletableFuture<>();
-		Service s = Proxier.get(Service.class, done);
+		AService s = Proxier.get(AService.class, done);
 		s.emptyServiceRoute();
 		assertEquals("emptyserviceroute", done.get());
 	}
@@ -76,9 +76,9 @@ public class ServiceRouteFuncTest {
 	@Test
 	public void route_standard_success() throws Exception {
 		CompletableFuture<String> done = new CompletableFuture<>();
-		ServiceRouteFuncTestService s = Proxier.get(ServiceRouteFuncTestService.class, done);
+		ProxyMethodUtilRouteTestService s = Proxier.get(ProxyMethodUtilRouteTestService.class, done);
 		s.foo();
-		assertEquals("io.teris.rpc.internal.serviceroutefunctest.foo", done.get());
+		assertEquals("io.teris.rpc.internal.proxymethodutilroutetest.foo", done.get());
 	}
 
 	@Test
@@ -86,7 +86,7 @@ public class ServiceRouteFuncTest {
 		CompletableFuture<String> done = new CompletableFuture<>();
 		NestedService s = Proxier.get(NestedService.class, done);
 		s.foo();
-		assertEquals("io.teris.rpc.internal.serviceroutefunctest.nested.foo", done.get());
+		assertEquals("io.teris.rpc.internal.proxymethodutilroutetest.nested.foo", done.get());
 	}
 
 	@Test
@@ -94,7 +94,7 @@ public class ServiceRouteFuncTest {
 		CompletableFuture<String> done = new CompletableFuture<>();
 		PathOvewriteService s = Proxier.get(PathOvewriteService.class, done);
 		s.foo();
-		assertEquals("some.path.pathovewrite.foo", done.get());
+		assertEquals("some.path.foo", done.get());
 	}
 
 	@Test
@@ -108,7 +108,7 @@ public class ServiceRouteFuncTest {
 	@Test
 	public void route_allSubstitute_success() throws Exception {
 		CompletableFuture<String> done = new CompletableFuture<>();
-		NoThingService s = Proxier.get(NoThingService.class, done);
+		ThingService s = Proxier.get(ThingService.class, done);
 		s.nofoo();
 		assertEquals("io.teris.rpc.some.path.thing.foo", done.get());
 	}
@@ -116,8 +116,6 @@ public class ServiceRouteFuncTest {
 	private static class Proxier implements InvocationHandler {
 
 		private final CompletableFuture<String> done;
-
-		private final ServiceRouteFunc serviceRouteFunc = new ServiceRouteFunc();
 
 		Proxier(CompletableFuture<String> done) {
 			this.done = done;
@@ -132,7 +130,7 @@ public class ServiceRouteFuncTest {
 		@Override
 		public Object invoke(Object proxy, Method method, Object[] args) {
 			try {
-				done.complete(serviceRouteFunc.apply(method));
+				done.complete(ProxyMethodUtil.route(method));
 			}
 			catch (Exception ex) {
 				done.completeExceptionally(ex);

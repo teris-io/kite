@@ -15,6 +15,8 @@ import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
+import javax.rpc.Service;
+
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -36,6 +38,7 @@ public class RemoteProxyTest {
 		deserializerMap.put(serializer.getContentType(), new JsonDeserializer());
 	}
 
+	@Service
 	interface VoidService {
 
 		void voidable();

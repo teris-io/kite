@@ -4,7 +4,11 @@
 
 package io.teris.rpc.internal;
 
-public interface ServiceRouteFuncTestService {
+import javax.rpc.Service;
+
+
+@Service
+public interface ProxyMethodUtilRouteTestService {
 
 	void foo();
 }

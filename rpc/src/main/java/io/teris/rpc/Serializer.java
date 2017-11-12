@@ -12,7 +12,7 @@ import javax.annotation.Nonnull;
 
 
 /**
- * Provides support to serialize POJOs into byte arrays of `contentType`.
+ * Provides support to serialize POJOs into byte array of `contentType`.
  */
 public interface Serializer {
 

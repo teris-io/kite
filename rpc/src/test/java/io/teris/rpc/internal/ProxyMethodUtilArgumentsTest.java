@@ -22,16 +22,15 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import javax.rpc.Name;
 
 import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import io.teris.rpc.ExportName;
 
-
-public class ServiceArgumentFuncTest {
+public class ProxyMethodUtilArgumentsTest {
 
 	@Rule
 	public ExpectedException exception = ExpectedException.none();
@@ -39,30 +38,30 @@ public class ServiceArgumentFuncTest {
 
 	interface FailingArgs {
 
-		void unannotated(@ExportName("title") String title, Integer unannotated);
+		void unannotated(@Name("title") String title, Integer unannotated);
 
-		void wildcard(@ExportName("list") ArrayList<?> list);
+		void wildcard(@Name("list") ArrayList<?> list);
 
-		void nonSerializable(@ExportName("title") Object title);
+		void nonSerializable(@Name("title") Object title);
 
-		void nonSerializableVararg(@ExportName("key") String key, @ExportName("values") Object... values);
+		void nonSerializableVararg(@Name("key") String key, @Name("values") Object... values);
 
-		void genericsNonSerializable(@ExportName("list") List<String> list);
+		void genericsNonSerializable(@Name("list") List<String> list);
 
-		void genericsNonSerializableParam(@ExportName("list") ArrayList<Object> list);
+		void genericsNonSerializableParam(@Name("list") ArrayList<Object> list);
 
-		void emptyName(@ExportName("") String title);
+		void emptyName(@Name("") String title);
 	}
 
 	interface ArgsVariationService {
 
 		void noargs();
 
-		void varargsOnly(@ExportName("ints") Integer... ints);
+		void varargsOnly(@Name("ints") Integer... ints);
 
-		void withVarargs(@ExportName("title") String title, @ExportName("key") String key, @ExportName("ints") Integer... values);
+		void withVarargs(@Name("title") String title, @Name("key") String key, @Name("ints") Integer... values);
 
-		void generics(@ExportName("map") ArrayList<HashMap<String, Double>> map, @ExportName("set") HashSet<Integer> set);
+		void generics(@Name("map") ArrayList<HashMap<String, Double>> map, @Name("set") HashSet<Integer> set);
 	}
 
 	@Test
@@ -71,7 +70,7 @@ public class ServiceArgumentFuncTest {
 		FailingArgs s = Proxier.get(FailingArgs.class, done);
 		s.unannotated("a", Integer.valueOf(25));
 		exception.expect(ExecutionException.class);
-		exception.expectMessage("Arguments of the service method 'unannotated' must be annotated with ExportName");
+		exception.expectMessage("Arguments of the service method 'unannotated' must be annotated with Name");
 		done.get();
 	}
 
@@ -202,8 +201,6 @@ public class ServiceArgumentFuncTest {
 
 		private final CompletableFuture<LinkedHashMap<String, Serializable>> done;
 
-		private final ServiceArgumentFunc serviceArgumentFunc = new ServiceArgumentFunc();
-
 		Proxier(CompletableFuture<LinkedHashMap<String, Serializable>> done) {
 			this.done = done;
 		}
@@ -217,7 +214,7 @@ public class ServiceArgumentFuncTest {
 		@Override
 		public Object invoke(Object proxy, Method method, Object[] args) {
 			try {
-				done.complete(serviceArgumentFunc.apply(method, args));
+				done.complete(ProxyMethodUtil.arguments(method, args));
 			}
 			catch (Exception ex) {
 				done.completeExceptionally(ex);

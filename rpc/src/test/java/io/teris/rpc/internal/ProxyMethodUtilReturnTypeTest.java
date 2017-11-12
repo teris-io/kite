@@ -26,7 +26,7 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 
-public class ServiceReturnTypeFuncTest {
+public class ProxyMethodUtilReturnTypeTest {
 
 	@Rule
 	public ExpectedException exception = ExpectedException.none();
@@ -343,8 +343,6 @@ public class ServiceReturnTypeFuncTest {
 
 		private final RS response;
 
-		private final ServiceReturnTypeFunc serviceReturnTypeFunc = new ServiceReturnTypeFunc();
-
 		Proxier(RS response) {
 			this.response = response;
 		}
@@ -376,7 +374,7 @@ public class ServiceReturnTypeFuncTest {
 		private CompletableFuture<RS> doInvoke(Method method) {
 			CompletableFuture<RS> res = new CompletableFuture<>();
 			try {
-				serviceReturnTypeFunc.apply(method);
+				ProxyMethodUtil.returnType(method);
 				res.complete(response);
 			}
 			catch (Exception ex) {

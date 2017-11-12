@@ -18,13 +18,13 @@ import javax.annotation.Nonnull;
 public interface Deserializer {
 
 	/**
-	 * Deserializes the byte array of data into an instance of `clazz`.
+	 * Deserializes byte array data into an instance of `clazz`.
 	 */
 	@Nonnull
 	<CT extends Serializable> CT deserialize(@Nonnull byte[] data, @Nonnull Class<CT> clazz);
 
 	/**
-	 * Deserializes the byte array of data into an instance of `type`.
+	 * Deserializes byte array data into an instance of `type`.
 	 */
 	@Nonnull
 	<CT extends Serializable> CT deserialize(@Nonnull byte[] data, @Nonnull Type type);
