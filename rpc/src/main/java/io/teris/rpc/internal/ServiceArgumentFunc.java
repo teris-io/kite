@@ -31,15 +31,7 @@ public class ServiceArgumentFunc
 	public LinkedHashMap<String, Serializable> apply(@Nonnull Method method, @Nullable Object[] args) {
 		int paramCount = method.getParameterCount();
 		if (args == null) {
-			if (paramCount != 0) {
-				throw new IllegalStateException(String.format("Internal error: Missing arguments for the service method '%s'",
-					method.getName()));
-			}
 			return null;
-		}
-		if (paramCount != args.length) {
-			throw new IllegalStateException(String.format("Internal error: Incorrect number of arguments for the service " +
-				"method '%s', expected %d, found %d", method.getName(), Integer.valueOf(paramCount), Integer.valueOf(args.length)));
 		}
 
 		LinkedHashMap<String, Serializable> payload = new LinkedHashMap<>();
@@ -69,8 +61,7 @@ public class ServiceArgumentFunc
 				"wildcards", method.getName()));
 		}
 		if (type instanceof Class) {
-			Class<?> clazz = (Class<?>) type;
-			if (!Serializable.class.isAssignableFrom(clazz)) {
+			if (!Serializable.class.isAssignableFrom((Class<?>) type)) {
 				throw new IllegalArgumentException(String.format("Argument types of the service method '%s' must implement " +
 					"Serializable or be void", method.getName()));
 			}
