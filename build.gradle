@@ -47,7 +47,7 @@ task("coverage", type: JacocoReport) {
 
 	reports {
 		xml.enabled = true
-		xml.setDestination(Paths.get(rootProject.buildDir.absolutePath, "reports", project.name + ".xml").toFile())
+		xml.setDestination(Paths.get(rootProject.buildDir.absolutePath, "reports", "jacoco", "report.xml").toFile())
 		html.enabled = false
 		csv.enabled = false
 	}
