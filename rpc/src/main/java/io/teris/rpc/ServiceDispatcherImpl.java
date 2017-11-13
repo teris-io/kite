@@ -5,19 +5,19 @@ package io.teris.rpc;
 
 import java.io.Serializable;
 import java.lang.reflect.Method;
-import java.lang.reflect.Parameter;
-import java.util.Arrays;
-import java.util.Collections;
+import java.util.AbstractMap.SimpleEntry;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
-import java.util.stream.Collectors;
+import java.util.concurrent.Future;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
+import io.teris.rpc.internal.InvocationCompleter;
+import io.teris.rpc.internal.ProxyMethodUtil;
+import io.teris.rpc.internal.ServiceArgDeserializer;
 import io.teris.rpc.internal.ServiceValidator;
 
 
@@ -37,7 +37,7 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 
 	static class BuilderImpl implements ServiceDispatcher.Builder {
 
-		private final Map<String, Entry<Object, Method>> endpoints = new HashMap<>();
+		final Map<String, Entry<Object, Method>> endpoints = new HashMap<>();
 
 		private Serializer serializer = null;
 
@@ -66,72 +66,78 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 
 		@Nonnull
 		public <S> Builder bind(@Nonnull Class<S> serviceClass, @Nonnull S service) throws ServiceException {
-			Map<String, Entry<Object, Method>> entries = mapServiceMethods(serviceClass, service);
-			this.endpoints.putAll(entries);
+			ServiceValidator.validate(serviceClass);
+			for (Method method : serviceClass.getDeclaredMethods()) {
+				String route = ProxyMethodUtil.route(method);
+				this.endpoints.put(route, new SimpleEntry<>(service, method));
+			}
 			return this;
 		}
 
 		@Nonnull
 		@Override
 		public ServiceDispatcher build() {
+			Objects.requireNonNull(serializer, "Missing serializer for an instance of the client service factory");
+			if (endpoints.isEmpty()) {
+				throw new IllegalStateException("Service endpoints are empty, no service has been registered");
+			}
 			return new ServiceDispatcherImpl(endpoints, serializer, deserializerMap);
-		}
-
-		@Nonnull
-		static <S> Map<String, Entry<Object, Method>> mapServiceMethods(@Nonnull Class<S> serviceClass, @Nonnull S service) throws ServiceException {
-			ServiceValidator.validate(serviceClass);
-
-			// FIXME
-			return Collections.emptyMap();
 		}
 	}
 
 	@Nonnull
 	@Override
-	public CompletableFuture<Entry<Context, byte[]>> call(@Nonnull String route, @Nonnull Context context, @Nullable byte[] data) {
-		CompletableFuture<Entry<Context, byte[]>> res = new CompletableFuture<>();
-		if (!endpoints.containsKey(route)) {
-			res.completeExceptionally(new TechnicalException(String.format("No route to %s", route)));
-			return res;
+	public CompletableFuture<Entry<Context, byte[]>> call(@Nonnull String route, @Nonnull Context context, @Nullable byte[] incoming) {
+		Entry<Object, Method> endpoint = endpoints.get(route);
+		if (endpoint == null) {
+			CompletableFuture<Entry<Context, byte[]>> promise = new CompletableFuture<>();
+			promise.completeExceptionally(new TechnicalException(String.format("No route to %s", route)));
+			return promise;
 		}
 
+		Method method = endpoint.getValue();
+		Object service = endpoint.getKey();
 
-		return null;
-	}
+		InvocationCompleter completer = new InvocationCompleter(method, serializer);
+		ServiceArgDeserializer argDeserializer = new ServiceArgDeserializer();
 
-
-	private static class Typedef extends LinkedHashMap<String, Serializable> {}
-
-	@Nullable
-	Object[] deserialize(@Nonnull Context context, @Nonnull Method method, @Nullable byte[] data) throws InvocationException {
-		List<Object> res = Arrays.stream(method.getParameters())
-			.map(it -> null)
-			.collect(Collectors.toList());
-		res.set(0, context);
-
-		if (data == null || data.length == 0) {
-			return res.toArray();
+		Object[] callArgs;
+		try {
+			Deserializer deserializer = deserializerMap.getOrDefault(context.get(Context.CONTENT_TYPE_KEY), serializer.deserializer());
+			callArgs = argDeserializer.deserialize(deserializer, context, method, incoming);
+		}
+		catch (Exception ex) {
+			return completer.complete(method, new InvocationException(method, ex));
 		}
 
-		Deserializer deserializer = deserializerMap.getOrDefault(context.get(Context.CONTENT_TYPE_KEY), serializer.deserializer());
+		Object callResult;
+		try {
+			callResult = method.invoke(service, callArgs);
+		}
+		catch (Exception ex) {
+			return completer.complete(method, new BusinessException(ex));
+		}
 
-		LinkedHashMap<String, Serializable> rawArgMap = deserializer.deserialize(data, Typedef.class.getGenericSuperclass());
-		for (int i = 1; i < method.getParameterCount(); i++) {
-			Parameter param = method.getParameters()[i];
-			Name nameAnnot = param.getAnnotation(Name.class); // validated on binding
-			Object arg = null;
-			if (nameAnnot != null) {
-				byte[] paramData = (byte[]) rawArgMap.remove(nameAnnot.value()); // requirement on deserializer: Serializable -> byte[]
-				if (paramData != null) {
-					arg = deserializer.deserialize(paramData, param.getParameterizedType());
-				}
-			}
-			res.set(i, arg);
+		if (callResult instanceof Serializable) {
+			return completer.complete(context, (Serializable) callResult);
 		}
-		if (!rawArgMap.isEmpty()) {
-			throw new InvocationException(method, String.format("payload fields %s do not match service signature",
-				rawArgMap.keySet()));
+		else if (callResult instanceof CompletableFuture) {
+			return completer.complete(context, (CompletableFuture<?>) callResult);
 		}
-		return res.toArray();
+		else if (callResult instanceof Future) {
+			return completer.complete(context, (Future) callResult);
+		}
+		else if (callResult == null && !Future.class.isAssignableFrom(method.getReturnType())) {
+			return completer.complete(context);
+		}
+		else if (void.class.isAssignableFrom(method.getReturnType()) || Void.class.isAssignableFrom(method.getReturnType())) {
+			return completer.complete(context);
+		}
+		else if (callResult == null) {
+			return completer.complete(new InvocationException(method, "received null for a future"));
+		}
+		else {
+			return completer.complete(new InvocationException(method, "return type is neither Serializable nor void"));
+		}
 	}
 }

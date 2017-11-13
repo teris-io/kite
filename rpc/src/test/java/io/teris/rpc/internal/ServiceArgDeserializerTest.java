@@ -2,7 +2,7 @@
  * Copyright (c) teris.io & Oleg Sklyar, 2017. All rights reserved
  */
 
-package io.teris.rpc;
+package io.teris.rpc.internal;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
@@ -11,7 +11,6 @@ import static org.junit.Assert.assertSame;
 import java.io.Serializable;
 import java.lang.reflect.Method;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -21,21 +20,31 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import io.teris.rpc.Context;
+import io.teris.rpc.Deserializer;
+import io.teris.rpc.InvocationException;
+import io.teris.rpc.Name;
+import io.teris.rpc.Service;
 import io.teris.rpc.testfixture.JsonSerializer;
 
 
-public class ServiceDispatcherImplDeserializeTest {
+public class ServiceArgDeserializerTest {
 
 	@Rule
 	public ExpectedException exception = ExpectedException.none();
 
-	private static final Serializer serializer = new JsonSerializer();
+	private static final JsonSerializer serializer = new JsonSerializer();
 
-	private static final ServiceDispatcherImpl underTest = new ServiceDispatcherImpl(Collections.emptyMap(), serializer, Collections.emptyMap());
+	private static final Deserializer deserializer = serializer.deserializer();
 
 	private static final Context context = new Context();
 
 	private static Method method;
+
+	@BeforeClass
+	public static void init() throws Exception {
+		method = AService.class.getMethod("call", Context.class, HashSet.class, HashMap.class);
+	}
 
 	@Service
 	public interface AService {
@@ -43,11 +52,6 @@ public class ServiceDispatcherImplDeserializeTest {
 		void call(Context context, @Name("keys") HashSet<String> keys, @Name("data") HashMap<String, Integer> data);
 
 		void empty(Context context);
-	}
-
-	@BeforeClass
-	public static void init() throws Exception {
-		method = AService.class.getMethod("call", Context.class, HashSet.class, HashMap.class);
 	}
 
 	@Test
@@ -61,7 +65,7 @@ public class ServiceDispatcherImplDeserializeTest {
 		args.put("keys", keys);
 		args.put("data", data);
 
-		Object[] actual = underTest.deserialize(context, method, serializer.serialize(args));
+		Object[] actual = new ServiceArgDeserializer().deserialize(deserializer, context, method, serializer.serialize(args));
 
 		assertEquals(3, actual.length);
 		assertSame(context, actual[0]);
@@ -71,7 +75,7 @@ public class ServiceDispatcherImplDeserializeTest {
 
 	@Test
 	public void deserialize_emptyData_success_nulls() throws Exception {
-		Object[] actual = underTest.deserialize(context, method, new byte[]{});
+		Object[] actual = new ServiceArgDeserializer().deserialize(deserializer, context, method, new byte[]{});
 
 		assertEquals(3, actual.length);
 		assertSame(context, actual[0]);
@@ -81,7 +85,7 @@ public class ServiceDispatcherImplDeserializeTest {
 
 	@Test
 	public void deserialize_nullData_success_nulls() throws Exception {
-		Object[] actual = underTest.deserialize(context, method, null);
+		Object[] actual = new ServiceArgDeserializer().deserialize(deserializer, context, method, null);
 
 		assertEquals(3, actual.length);
 		assertSame(context, actual[0]);
@@ -92,7 +96,7 @@ public class ServiceDispatcherImplDeserializeTest {
 	@Test
 	public void deserialize_noParams_emptyData_success_contextOnly() throws Exception {
 		Method emptyMethod = AService.class.getMethod("empty", Context.class);
-		Object[] actual = underTest.deserialize(context, emptyMethod, null);
+		Object[] actual = new ServiceArgDeserializer().deserialize(deserializer, context, emptyMethod, null);
 
 		assertEquals(1, actual.length);
 		assertSame(context, actual[0]);
@@ -107,7 +111,7 @@ public class ServiceDispatcherImplDeserializeTest {
 		LinkedHashMap<String, Serializable> args = new LinkedHashMap<>();
 		args.put("data", data);
 
-		Object[] actual = underTest.deserialize(context, method, serializer.serialize(args));
+		Object[] actual = new ServiceArgDeserializer().deserialize(deserializer, context, method, serializer.serialize(args));
 
 		assertEquals(3, actual.length);
 		assertSame(context, actual[0]);
@@ -125,6 +129,6 @@ public class ServiceDispatcherImplDeserializeTest {
 		Method emptyMethod = AService.class.getMethod("empty", Context.class);
 		exception.expect(InvocationException.class);
 		exception.expectMessage("");
-		underTest.deserialize(context, emptyMethod, serializer.serialize(args));
+		new ServiceArgDeserializer().deserialize(deserializer, context, emptyMethod, serializer.serialize(args));
 	}
 }
