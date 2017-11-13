@@ -7,20 +7,28 @@ package io.teris.rpc.internal;
 import java.lang.reflect.Method;
 import javax.annotation.Nonnull;
 
+import io.teris.rpc.InstantiationException;
+import io.teris.rpc.ServiceException;
 
+
+/**
+ * Provides a utility to validate service definitions for correctness.
+ */
 public final class ServiceValidator {
 
 	private ServiceValidator() {}
 
-	public static <S> void validate(@Nonnull Class<S> serviceClass) throws IllegalArgumentException {
+	/**
+	 * Validates a service definition.
+	 * @throws ServiceException on any invalid definition logic.
+	 */
+	public static <S> void validate(@Nonnull Class<S> serviceClass) throws ServiceException {
 		if (!serviceClass.isInterface()) {
-			throw new IllegalArgumentException(String.format("Service definition '%s' must be an interface",
-				serviceClass.getSimpleName()));
+			throw new InstantiationException(serviceClass, "service definition must be an interface");
 		}
 		Method[] methods = serviceClass.getDeclaredMethods();
 		if (methods.length < 1) {
-			throw new IllegalArgumentException(String.format("Service definition '%s' must define at least one method",
-				serviceClass.getSimpleName()));
+			throw new InstantiationException(serviceClass, "service definition must declare at least one service method");
 		}
 		for (Method method : methods) {
 			ProxyMethodUtil.route(method);

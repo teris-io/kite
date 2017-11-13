@@ -82,7 +82,7 @@ public class ProxyMethodUtilArgumentsTest {
 		FailingArgs s = Proxier.get(FailingArgs.class, done);
 		s.noContext("title");
 		exception.expect(ExecutionException.class);
-		exception.expectMessage("First argument of the service method 'noContext' must be Context");
+		exception.expectMessage("Failed to invoke FailingArgs.noContext: first argument must be an instance of Context");
 		done.get();
 	}
 
@@ -92,7 +92,7 @@ public class ProxyMethodUtilArgumentsTest {
 		FailingArgs s = Proxier.get(FailingArgs.class, done);
 		s.emptyContext(null);
 		exception.expect(ExecutionException.class);
-		exception.expectMessage("First argument of the service method 'emptyContext' must be Context");
+		exception.expectMessage("Failed to invoke FailingArgs.emptyContext: first argument must be an instance of Context");
 		done.get();
 	}
 
@@ -102,7 +102,7 @@ public class ProxyMethodUtilArgumentsTest {
 		FailingArgs s = Proxier.get(FailingArgs.class, done);
 		s.noargs();
 		exception.expect(ExecutionException.class);
-		exception.expectMessage("First argument of the service method 'noargs' must be Context");
+		exception.expectMessage("Failed to invoke FailingArgs.noargs: first argument must be an instance of Context");
 		done.get();
 	}
 
@@ -112,7 +112,7 @@ public class ProxyMethodUtilArgumentsTest {
 		FailingArgs s = Proxier.get(FailingArgs.class, done);
 		s.unannotated(context,"a", Integer.valueOf(25));
 		exception.expect(ExecutionException.class);
-		exception.expectMessage("Arguments of the service method 'unannotated' must be annotated with Name");
+		exception.expectMessage("Failed to invoke FailingArgs.unannotated: all arguments except for the first one must be annotated with @Name");
 		done.get();
 	}
 
@@ -122,7 +122,7 @@ public class ProxyMethodUtilArgumentsTest {
 		FailingArgs s = Proxier.get(FailingArgs.class, done);
 		s.wildcard(context, new ArrayList<>());
 		exception.expect(ExecutionException.class);
-		exception.expectMessage("Argument types of the service method 'wildcard' must contain no wildcards");
+		exception.expectMessage("Failed to invoke FailingArgs.wildcard: argument types must contain no wildcards");
 		done.get();
 	}
 
@@ -132,7 +132,7 @@ public class ProxyMethodUtilArgumentsTest {
 		FailingArgs s = Proxier.get(FailingArgs.class, done);
 		s.nonSerializable(context, "a");
 		exception.expect(ExecutionException.class);
-		exception.expectMessage("Argument types of the service method 'nonSerializable' must implement Serializable or be void");
+		exception.expectMessage("Failed to invoke FailingArgs.nonSerializable: arguments must implement Serializable");
 		done.get();
 	}
 
@@ -153,7 +153,7 @@ public class ProxyMethodUtilArgumentsTest {
 		FailingArgs s = Proxier.get(FailingArgs.class, done);
 		s.genericsNonSerializable(context, new ArrayList<>());
 		exception.expect(ExecutionException.class);
-		exception.expectMessage("Argument types of the service method 'genericsNonSerializable' must implement Serializable or be void");
+		exception.expectMessage("Failed to invoke FailingArgs.genericsNonSerializable: arguments must implement Serializable");
 		done.get();
 	}
 
@@ -163,7 +163,7 @@ public class ProxyMethodUtilArgumentsTest {
 		FailingArgs s = Proxier.get(FailingArgs.class, done);
 		s.genericsNonSerializableParam(context, new ArrayList<>());
 		exception.expect(ExecutionException.class);
-		exception.expectMessage("Argument types of the service method 'genericsNonSerializableParam' must implement Serializable or be void");
+		exception.expectMessage("Failed to invoke FailingArgs.genericsNonSerializableParam: arguments must implement Serializable");
 		done.get();
 	}
 
@@ -173,7 +173,7 @@ public class ProxyMethodUtilArgumentsTest {
 		FailingArgs s = Proxier.get(FailingArgs.class, done);
 		s.emptyName(context, "");
 		exception.expect(ExecutionException.class);
-		exception.expectMessage("Argument names of the service method 'emptyName' must not be empty");
+		exception.expectMessage("Failed to invoke FailingArgs.emptyName: all arguments must have non-empty @Name annotation");
 		done.get();
 	}
 
@@ -274,5 +274,4 @@ public class ProxyMethodUtilArgumentsTest {
 			return null;
 		}
 	}
-
 }

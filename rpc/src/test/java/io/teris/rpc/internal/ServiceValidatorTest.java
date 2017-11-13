@@ -9,8 +9,11 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import io.teris.rpc.Context;
+import io.teris.rpc.InstantiationException;
+import io.teris.rpc.InvocationException;
 import io.teris.rpc.Name;
 import io.teris.rpc.Service;
+import io.teris.rpc.ServiceException;
 
 
 public class ServiceValidatorTest {
@@ -58,42 +61,42 @@ public class ServiceValidatorTest {
 	}
 
 	@Test
-	public void validate_NotInterface_throws() {
-		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Service definition 'NotInterface' must be an interface");
+	public void validate_NotInterface_throws() throws ServiceException {
+		exception.expect(InstantiationException.class);
+		exception.expectMessage("Failed to construct an instance of service NotInterface: service definition must be an interface");
 		ServiceValidator.validate(NotInterface.class);
 	}
 
 	@Test
-	public void validate_NoMethods_throws() {
-		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Service definition 'NoMethods' must define at least one method");
+	public void validate_NoMethods_throws() throws ServiceException {
+		exception.expect(InstantiationException.class);
+		exception.expectMessage("Failed to construct an instance of service NoMethods: service definition must declare at least one service method");
 		ServiceValidator.validate(NoMethods.class);
 	}
 
 	@Test
-	public void validate_Unannotated_throws() {
-		exception.expect(IllegalStateException.class);
-		exception.expectMessage("Service 'Unannotated' must be annotation with @Service");
+	public void validate_Unannotated_throws() throws ServiceException {
+		exception.expect(InvocationException.class);
+		exception.expectMessage("Failed to invoke Unannotated.method: missing @Service annotation");
 		ServiceValidator.validate(Unannotated.class);
 	}
 
 	@Test
-	public void validate_InvalidMethod_throws() {
-		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("First argument of the service method 'invalid' must be Context");
+	public void validate_InvalidMethod_throws() throws ServiceException {
+		exception.expect(InvocationException.class);
+		exception.expectMessage("Failed to invoke InvalidMethod.invalid: first argument must be an instance of Context");
 		ServiceValidator.validate(InvalidMethod.class);
 	}
 
 	@Test
-	public void validate_NonSerializable_throws() {
-		exception.expect(IllegalArgumentException.class);
-		exception.expectMessage("Argument types of the service method 'valid' must implement Serializable or be void");
+	public void validate_NonSerializable_throws() throws ServiceException{
+		exception.expect(InvocationException.class);
+		exception.expectMessage("Failed to invoke NonSerializable.valid: arguments must implement Serializable");
 		ServiceValidator.validate(NonSerializable.class);
 	}
 
 	@Test
-	public void validate_Valid_success() {
+	public void validate_Valid_success() throws ServiceException {
 		ServiceValidator.validate(Valid.class);
 	}
 }

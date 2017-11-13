@@ -6,13 +6,10 @@ package io.teris.rpc.http;
 
 import javax.annotation.Nonnull;
 
-import io.teris.rpc.ServiceFactory;
 
-
-public class VertxWebServiceExporter implements ServiceFactory {
+public class VertxWebServiceExporter  {
 
 	@Nonnull
-	@Override
 	public <S> S get(@Nonnull Class<S> serviceClass) throws InstantiationException {
 		return null;
 	}

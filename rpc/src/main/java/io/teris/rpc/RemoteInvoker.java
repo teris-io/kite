@@ -10,8 +10,8 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 
-public interface Requester {
+public interface RemoteInvoker {
 
 	@Nonnull
-	CompletableFuture<Entry<Context, byte[]>> execute(@Nonnull String route, @Nonnull Context context, @Nullable byte[] data);
+	CompletableFuture<Entry<Context, byte[]>> call(@Nonnull String route, @Nonnull Context context, @Nullable byte[] data);
 }

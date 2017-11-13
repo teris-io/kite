@@ -61,7 +61,7 @@ public class ProxyMethodUtilRouteTest {
 		AService s = Proxier.get(AService.class, done);
 		s.emptyFullRoute();
 		exception.expect(ExecutionException.class);
-		exception.expectMessage("Empty root for AService.emptyFullRoute");
+		exception.expectMessage("Failed to invoke AService.emptyFullRoute: empty route");
 		done.get();
 	}
 

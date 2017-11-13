@@ -20,11 +20,12 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import io.teris.rpc.ClientServiceFactoryImpl.ClientServiceInvocationHandler;
 import io.teris.rpc.testfixture.JsonDeserializer;
 import io.teris.rpc.testfixture.JsonSerializer;
 
 
-public class RemoteProxyTest {
+public class ClientServiceFactoryTest {
 
 	@Rule
 	public ExpectedException exception = ExpectedException.none();
@@ -47,18 +48,18 @@ public class RemoteProxyTest {
 
 	@Test
 	public void voidSyncReturn_nullTransfer_success() {
-		Requester requester = requesterMock(null);
-		RemoteProxy handler = new RemoteProxy(serializer, requester, deserializerMap);
+		RemoteInvoker requester = remoteCallerMock(null);
+		ClientServiceInvocationHandler handler = new ClientServiceInvocationHandler(requester, serializer, deserializerMap);
 		VoidService s = getProxy(VoidService.class, handler);
 		s.voidable(new Context());
-		verify(requester).execute(any(), any(), any());
+		verify(requester).call(any(), any(), any());
 	}
 
 	@Test
 	public void voidSyncReturn_nonNullTransfer_throws() {
 		// looks like accepted value for void (so it should actually fail trying to find deserializer)
-		Requester requester = requesterMock("true".getBytes());
-		RemoteProxy handler = new RemoteProxy(serializer, requester, deserializerMap);
+		RemoteInvoker requester = remoteCallerMock("true".getBytes());
+		ClientServiceInvocationHandler handler = new ClientServiceInvocationHandler(requester, serializer, deserializerMap);
 		VoidService s = getProxy(VoidService.class, handler);
 		exception.expect(RuntimeException.class);
 		exception.expectMessage("Internal error: can't find deserializer for void");
@@ -67,18 +68,18 @@ public class RemoteProxyTest {
 
 	@Test
 	public void voidAsyncReturn_nullTransfer_success() throws Exception {
-		Requester requester = requesterMock(null);
-		RemoteProxy handler = new RemoteProxy(serializer, requester, deserializerMap);
+		RemoteInvoker requester = remoteCallerMock(null);
+		ClientServiceInvocationHandler handler = new ClientServiceInvocationHandler(requester, serializer, deserializerMap);
 		VoidService s = getProxy(VoidService.class, handler);
 		s.voidableAsync(new Context()).get();
-		verify(requester).execute(any(), any(), any());
+		verify(requester).call(any(), any(), any());
 	}
 
 	@Test
 	public void voidAsyncReturn_nonNullTransfer_throws() throws Exception {
 		// looks like accepted value for void (so it should actually fail trying to find deserializer)
-		Requester requester = requesterMock("true".getBytes());
-		RemoteProxy handler = new RemoteProxy(serializer, requester, deserializerMap);
+		RemoteInvoker requester = remoteCallerMock("true".getBytes());
+		ClientServiceInvocationHandler handler = new ClientServiceInvocationHandler(requester, serializer, deserializerMap);
 		VoidService s = getProxy(VoidService.class, handler);
 		CompletableFuture<Void> future = s.voidableAsync(new Context());
 		exception.expect(ExecutionException.class);
@@ -86,18 +87,18 @@ public class RemoteProxyTest {
 		future.get();
 	}
 
-	private <S> S getProxy(Class<S> serviceClass, RemoteProxy handler) {
+	private <S> S getProxy(Class<S> serviceClass, ClientServiceInvocationHandler handler) {
 		@SuppressWarnings("unchecked")
 		S res = (S) Proxy.newProxyInstance(getClass().getClassLoader(), new Class[]{ serviceClass }, handler);
 		return res;
 	}
 
-	private Requester requesterMock(byte[] res) {
-		Requester requester = mock(Requester.class);
+	private RemoteInvoker remoteCallerMock(byte[] res) {
+		RemoteInvoker requester = mock(RemoteInvoker.class);
 		doAnswer(invocation -> {
 			Context context = invocation.getArgument(1);
 			return CompletableFuture.completedFuture(new SimpleEntry<>(context, res));
-		}).when(requester).execute(any(), any(), any());
+		}).when(requester).call(any(), any(), any());
 		return requester;
 	}
 }
