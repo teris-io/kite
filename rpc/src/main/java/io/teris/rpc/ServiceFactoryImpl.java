@@ -1,6 +1,7 @@
-/**
- * Copyright (c) Profidata AG 2017
+/*
+ * Copyright (c) teris.io & Oleg Sklyar, 2017. All rights reserved
  */
+
 package io.teris.rpc;
 
 import java.io.Serializable;

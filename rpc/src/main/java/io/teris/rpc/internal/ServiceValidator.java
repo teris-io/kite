@@ -5,21 +5,15 @@
 package io.teris.rpc.internal;
 
 import java.lang.reflect.Method;
-import java.util.Collections;
-import java.util.Map;
-import java.util.Map.Entry;
 import javax.annotation.Nonnull;
 
 import io.teris.rpc.InstantiationException;
 import io.teris.rpc.ServiceException;
 
 
-/**
- * Provides utilities to work with service proxies.
- */
-public final class ServiceUtil {
+public final class ServiceValidator {
 
-	private ServiceUtil() {}
+	private ServiceValidator() {}
 
 	/**
 	 * Validates a service definition.
@@ -38,13 +32,5 @@ public final class ServiceUtil {
 			ProxyMethodUtil.validateArgumentTypes(method);
 			ProxyMethodUtil.returnType(method);
 		}
-	}
-
-	@Nonnull
-	public static <S> Map<String, Entry<Object, Method>> mapServiceMethods(@Nonnull Class<S> serviceClass, @Nonnull S service) throws ServiceException {
-		validate(serviceClass);
-
-		// FIXME
-		return Collections.emptyMap();
 	}
 }

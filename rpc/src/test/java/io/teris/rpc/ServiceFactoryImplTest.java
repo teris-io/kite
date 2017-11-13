@@ -25,7 +25,7 @@ import io.teris.rpc.testfixture.JsonDeserializer;
 import io.teris.rpc.testfixture.JsonSerializer;
 
 
-public class ServiceFactoryTest {
+public class ServiceFactoryImplTest {
 
 	@Rule
 	public ExpectedException exception = ExpectedException.none();
