@@ -22,12 +22,16 @@ import javax.annotation.Nonnull;
 import io.teris.rpc.internal.ProxyMethodUtil;
 
 
-class ClientServiceFactoryImpl implements ClientServiceFactory {
+/**
+ * Provides the default implementation of the ServiceFactory that implements the
+ * creation of service proxies based on parametrizable serializer and
+ */
+class ServiceFactoryImpl implements ServiceFactory {
 
 	private final InvocationHandler invocationHandler;
 
-	ClientServiceFactoryImpl(RemoteInvoker remoteInvoker, Serializer serializer, Map<String, Deserializer> deserializerMap) {
-		this.invocationHandler = new ClientServiceInvocationHandler(remoteInvoker, serializer, deserializerMap);
+	ServiceFactoryImpl(ServiceInvoker serviceInvoker, Serializer serializer, Map<String, Deserializer> deserializerMap) {
+		this.invocationHandler = new ClientServiceInvocationHandler(serviceInvoker, serializer, deserializerMap);
 	}
 
 	@Nonnull
@@ -43,9 +47,9 @@ class ClientServiceFactoryImpl implements ClientServiceFactory {
 		}
 	}
 
-	static class BuilderImpl implements ClientServiceFactory.Builder {
+	static class BuilderImpl implements ServiceFactory.Builder {
 
-		private RemoteInvoker remoteInvoker = null;
+		private ServiceInvoker serviceInvoker = null;
 
 		private Serializer serializer = null;
 
@@ -53,8 +57,8 @@ class ClientServiceFactoryImpl implements ClientServiceFactory {
 
 		@Nonnull
 		@Override
-		public Builder remoteInvoker(@Nonnull RemoteInvoker remoteInvoker) {
-			this.remoteInvoker = remoteInvoker;
+		public Builder serviceInvoker(@Nonnull ServiceInvoker serviceInvoker) {
+			this.serviceInvoker = serviceInvoker;
 			return this;
 		}
 
@@ -81,10 +85,10 @@ class ClientServiceFactoryImpl implements ClientServiceFactory {
 
 		@Nonnull
 		@Override
-		public ClientServiceFactory build() {
-			Objects.requireNonNull(remoteInvoker, "Missing remote caller for an instance of the client service factory");
+		public ServiceFactory build() {
+			Objects.requireNonNull(serviceInvoker, "Missing remote caller for an instance of the client service factory");
 			Objects.requireNonNull(serializer, "Missing serializer for an instance of the client service factory");
-			return new ClientServiceFactoryImpl(remoteInvoker, serializer, deserializerMap);
+			return new ServiceFactoryImpl(serviceInvoker, serializer, deserializerMap);
 		}
 	}
 
@@ -94,7 +98,7 @@ class ClientServiceFactoryImpl implements ClientServiceFactory {
 	 * - validate method definition (arguments, return type, route)
 	 * - extract context from the first method argument and serialize other arguments
 	 * - extract method remote route
-	 * - perform a remote invocation using the remoteInvoker
+	 * - perform a remote invocation using the serviceInvoker
 	 * - if successful deserialize the response using a deserializer for the content type
 	 *   delivered in the response context
 	 *
@@ -103,16 +107,16 @@ class ClientServiceFactoryImpl implements ClientServiceFactory {
 	 */
 	static class ClientServiceInvocationHandler implements InvocationHandler {
 
+		private final ServiceInvoker serviceInvoker;
+
 		private final Serializer serializer;
 
-		private final RemoteInvoker remoteInvoker;
+		private final Map<String, Deserializer> deserializerMap = new HashMap<>();
 
-		private final Map<String, Deserializer> deserializerMap;
-
-		ClientServiceInvocationHandler(RemoteInvoker remoteInvoker, Serializer serializer, Map<String, Deserializer> deserializerMap) {
+		ClientServiceInvocationHandler(ServiceInvoker serviceInvoker, Serializer serializer, Map<String, Deserializer> deserializerMap) {
+			this.serviceInvoker = serviceInvoker;
 			this.serializer = serializer;
-			this.remoteInvoker = remoteInvoker;
-			this.deserializerMap = deserializerMap;
+			this.deserializerMap.putAll(deserializerMap);
 		}
 
 		@Override
@@ -148,12 +152,12 @@ class ClientServiceFactoryImpl implements ClientServiceFactory {
 				LinkedHashMap<String, Serializable> payload = parsedArgs.getValue();
 				byte[] data = payload != null ? serializer.serialize(payload) : null;
 
-				CompletableFuture<Entry<Context, byte[]>> responsePromise =	remoteInvoker.call(routingKey, context, data);
+				CompletableFuture<Entry<Context, byte[]>> responsePromise =	serviceInvoker.call(routingKey, context, data);
 				return responsePromise.thenApply(entry -> {
 					Context responseContext = entry.getKey();
 					Deserializer deserializer = deserializerMap.getOrDefault(responseContext.get(Context.CONTENT_TYPE_KEY), serializer.deserializer());
 					byte[] response = entry.getValue();
-					return response == null ? null : deserializer.deserialize(response, type);
+					return response != null ? deserializer.deserialize(response, type) : null;
 				});
 			}
 			catch (RuntimeException ex) {

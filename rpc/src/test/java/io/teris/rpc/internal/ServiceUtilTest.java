@@ -16,7 +16,7 @@ import io.teris.rpc.Service;
 import io.teris.rpc.ServiceException;
 
 
-public class ServiceValidatorTest {
+public class ServiceUtilTest {
 
 	@Rule
 	public ExpectedException exception = ExpectedException.none();
@@ -64,39 +64,39 @@ public class ServiceValidatorTest {
 	public void validate_NotInterface_throws() throws ServiceException {
 		exception.expect(InstantiationException.class);
 		exception.expectMessage("Failed to construct an instance of service NotInterface: service definition must be an interface");
-		ServiceValidator.validate(NotInterface.class);
+		ServiceUtil.validate(NotInterface.class);
 	}
 
 	@Test
 	public void validate_NoMethods_throws() throws ServiceException {
 		exception.expect(InstantiationException.class);
 		exception.expectMessage("Failed to construct an instance of service NoMethods: service definition must declare at least one service method");
-		ServiceValidator.validate(NoMethods.class);
+		ServiceUtil.validate(NoMethods.class);
 	}
 
 	@Test
 	public void validate_Unannotated_throws() throws ServiceException {
 		exception.expect(InvocationException.class);
 		exception.expectMessage("Failed to invoke Unannotated.method: missing @Service annotation");
-		ServiceValidator.validate(Unannotated.class);
+		ServiceUtil.validate(Unannotated.class);
 	}
 
 	@Test
 	public void validate_InvalidMethod_throws() throws ServiceException {
 		exception.expect(InvocationException.class);
 		exception.expectMessage("Failed to invoke InvalidMethod.invalid: first argument must be an instance of Context");
-		ServiceValidator.validate(InvalidMethod.class);
+		ServiceUtil.validate(InvalidMethod.class);
 	}
 
 	@Test
 	public void validate_NonSerializable_throws() throws ServiceException{
 		exception.expect(InvocationException.class);
 		exception.expectMessage("Failed to invoke NonSerializable.valid: arguments must implement Serializable");
-		ServiceValidator.validate(NonSerializable.class);
+		ServiceUtil.validate(NonSerializable.class);
 	}
 
 	@Test
 	public void validate_Valid_success() throws ServiceException {
-		ServiceValidator.validate(Valid.class);
+		ServiceUtil.validate(Valid.class);
 	}
 }

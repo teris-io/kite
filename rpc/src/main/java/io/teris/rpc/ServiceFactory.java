@@ -7,7 +7,7 @@ import java.util.Map;
 import javax.annotation.Nonnull;
 
 
-public interface ClientServiceFactory {
+public interface ServiceFactory {
 
 	/**
 	 * Creates a client service factory instance that can generate service proxies
@@ -24,7 +24,7 @@ public interface ClientServiceFactory {
 	 */
 	@Nonnull
 	static Builder builder() {
-		return new ClientServiceFactoryImpl.BuilderImpl();
+		return new ServiceFactoryImpl.BuilderImpl();
 	}
 
 	/**
@@ -37,17 +37,17 @@ public interface ClientServiceFactory {
 		 * server.
 		 */
 		@Nonnull
-		Builder remoteInvoker(@Nonnull RemoteInvoker remoteInvoker);
+		Builder serviceInvoker(@Nonnull ServiceInvoker serviceInvoker);
 
 		/**
-		 * Binds a serializer used to serialize service method arguments for the remote caller.
+		 * Binds a serializer for serializing service method arguments before remote invocation.
 		 */
 		@Nonnull
 		Builder serializer(@Nonnull Serializer serializer);
 
 		/**
-		 * Binds a content type specific deserializer used to deserialize data received in
-		 * response from the server based on the content type of the response.
+		 * Binds a deserializer for a specific content type for deserializing data recevied
+		 * in response to a remote invocation.
 		 */
 		@Nonnull
 		Builder deserializer(@Nonnull String contentType, @Nonnull Deserializer deserializer);
@@ -63,6 +63,6 @@ public interface ClientServiceFactory {
 		 * Builds an instance of the client service factory.
 		 */
 		@Nonnull
-		ClientServiceFactory build();
+		ServiceFactory build();
 	}
 }

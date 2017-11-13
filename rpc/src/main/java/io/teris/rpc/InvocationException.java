@@ -12,7 +12,7 @@ import javax.annotation.Nonnull;
  * a remote service call: declaration, serialization, transport, deserialization error
  * etc.
  */
-public class InvocationException extends ServiceException {
+public class InvocationException extends TechnicalException {
 
 	static final long serialVersionUID = 234908723405672L;
 
