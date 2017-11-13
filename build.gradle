@@ -1,3 +1,4 @@
+import java.nio.file.Paths
 
 ext {
   findbugsModule = "com.google.code.findbugs:annotations:3.0.1"
@@ -8,37 +9,46 @@ ext {
 	mockitoModule = "org.mockito:mockito-core:2.12.0"
 }
 
-subprojects {
-  plugins.apply(JavaPlugin)
+allprojects {
+	version = "0.1.0-SNAPSHOT"
+	group = "io.teris.rpc"
+
 	plugins.apply(JacocoPlugin)
 
-  version = "0.1.0-SNAPSHOT"
-  group = "io.teris.rpc"
+	repositories.jcenter()
+}
 
-  repositories.jcenter()
+subprojects {
+  plugins.apply(JavaPlugin)
 
-	gradle.projectsEvaluated {
-		tasks.withType(JavaCompile) {
-			options.compilerArgs << "-parameters"
-		}
+	test.jacoco {
+		append = false
+		destinationFile = Paths.get(rootProject.buildDir.absolutePath, "jacoco", project.name + ".exec").toFile()
+	}
+
+	jacocoTestReport.reports {
+		xml.enabled = false
+		html.enabled = false
+		csv.enabled = false
 	}
 }
 
-task("codeCoverageReport", type: JacocoReport) {
-	executionData fileTree(project.rootDir.absolutePath).include("**/build/jacoco/*.exec")
+task("clean", type: Delete) {
+	delete(buildDir)
+}
 
-	subprojects.each {
-		sourceSets it.sourceSets.main
-	}
+task("coverage", type: JacocoReport) {
+	dependsOn(subprojects*.test)
+
+	executionData(fileTree(Paths.get(rootProject.buildDir.absolutePath, "jacoco").toFile()).include("*.exec"))
+
+	setSourceDirectories(files(subprojects*.sourceSets.main.java.srcDirs))
+	setClassDirectories(files(subprojects*.sourceSets.main.output))
 
 	reports {
-		xml.enabled true
-		xml.destination "${buildDir}/reports/jacoco/report.xml"
-		html.enabled false
-		csv.enabled false
+		xml.enabled = true
+		xml.setDestination(Paths.get(rootProject.buildDir.absolutePath, "reports", project.name + ".xml").toFile())
+		html.enabled = false
+		csv.enabled = false
 	}
-}
-
-codeCoverageReport.dependsOn {
-	subprojects*.test
 }
