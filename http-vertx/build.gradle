@@ -9,4 +9,7 @@ dependencies {
 	compile(vertxWebModule)
 	compile(project(":rpc"))
 
+	testCompile(junitModule)
+	testCompile(mockitoModule)
+	testCompile(project(":serialization-json"))
 }

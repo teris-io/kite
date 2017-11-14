@@ -5,10 +5,14 @@
 package io.teris.rpc;
 
 import java.util.Map;
+import java.util.Set;
 import javax.annotation.Nonnull;
 
 
 public interface ServiceDispatcher extends ServiceInvoker {
+
+	@Nonnull
+	Set<String> endpoints();
 
 	@Nonnull
 	static Builder builder() {

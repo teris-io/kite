@@ -7,10 +7,12 @@ import java.io.Serializable;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.AbstractMap.SimpleEntry;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import javax.annotation.Nonnull;
@@ -89,6 +91,12 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 			}
 			return new ServiceDispatcherImpl(endpoints, serializer, deserializerMap);
 		}
+	}
+
+	@Nonnull
+	@Override
+	public Set<String> endpoints() {
+		return Collections.unmodifiableSet(endpoints.keySet());
 	}
 
 	@Nonnull
