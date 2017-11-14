@@ -19,7 +19,6 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import io.teris.rpc.Context;
-import io.teris.rpc.Deserializer;
 import io.teris.rpc.InvocationException;
 import io.teris.rpc.Name;
 import io.teris.rpc.Service;
@@ -128,7 +127,11 @@ public final class ProxyMethodUtil {
 			throw new InvocationException(method, "argument types must contain no wildcards");
 		}
 		if (type instanceof Class) {
-			if (!Serializable.class.isAssignableFrom((Class<?>) type)) {
+			Class<?> clazz = (Class<?>) type;
+			if (clazz.isArray()) {
+				validateArgumentType(method, clazz.getComponentType());
+			}
+			else if (!Serializable.class.isAssignableFrom(clazz)) {
 				throw new InvocationException(method, "arguments must implement Serializable");
 			}
 		}
@@ -157,10 +160,15 @@ public final class ProxyMethodUtil {
 		}
 		if (type instanceof Class) {
 			Class<?> clazz = (Class<?>) type;
-			boolean isVoid = void.class.isAssignableFrom(clazz) || Void.class.isAssignableFrom(clazz);
-			boolean isSerializable = Serializable.class.isAssignableFrom(clazz);
-			if (!isVoid && !isSerializable) {
-				throw new InvocationException(method, "return type must implement Serializable or be void/Void");
+			if (clazz.isArray()) {
+				validateReturnType(method, clazz.getComponentType());
+			}
+			else {
+				boolean isVoid = void.class.isAssignableFrom(clazz) || Void.class.isAssignableFrom(clazz);
+				boolean isSerializable = Serializable.class.isAssignableFrom(clazz);
+				if (!isVoid && !isSerializable) {
+					throw new InvocationException(method, "return type must implement Serializable or be void/Void");
+				}
 			}
 		}
 		if (type instanceof ParameterizedType) {

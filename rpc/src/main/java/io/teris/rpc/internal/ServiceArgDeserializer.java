@@ -8,7 +8,7 @@ import java.io.Serializable;
 import java.lang.reflect.Method;
 import java.lang.reflect.Parameter;
 import java.util.Arrays;
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
@@ -22,9 +22,9 @@ import io.teris.rpc.Name;
 
 public class ServiceArgDeserializer {
 
-	private static class Typedef extends LinkedHashMap<String, Serializable> {}
+	private static class Typedef extends HashMap<String, Serializable> {}
 
-	@Nullable
+	@Nonnull
 	public Object[] deserialize(Deserializer deserializer, @Nonnull Context context, @Nonnull Method method, @Nullable byte[] data) throws InvocationException {
 		List<Object> res = Arrays.stream(method.getParameters())
 			.map(it -> null)
@@ -35,7 +35,7 @@ public class ServiceArgDeserializer {
 			return res.toArray();
 		}
 
-		LinkedHashMap<String, Serializable> rawArgMap = deserializer.deserialize(data, Typedef.class.getGenericSuperclass());
+		HashMap<String, Serializable> rawArgMap = deserializer.deserialize(data, Typedef.class.getGenericSuperclass());
 		for (int i = 1; i < method.getParameterCount(); i++) {
 			Parameter param = method.getParameters()[i];
 			Name nameAnnot = param.getAnnotation(Name.class); // validated on binding

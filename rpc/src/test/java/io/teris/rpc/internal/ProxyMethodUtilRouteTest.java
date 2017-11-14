@@ -39,7 +39,7 @@ public class ProxyMethodUtilRouteTest {
 		void foo();
 	}
 
-	@Service(value = "some.path")
+	@Service("some.path")
 	interface PathOvewriteService {
 		void foo();
 	}

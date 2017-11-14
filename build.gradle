@@ -7,6 +7,11 @@ import java.nio.file.Paths
 ext {
   findbugsModule = "com.google.code.findbugs:annotations:3.0.1"
 	jacksonDatabindModule = "com.fasterxml.jackson.core:jackson-databind:2.9.2"
+	jacksonDataformatXmlModule = "com.fasterxml.jackson.dataformat:jackson-dataformat-xml:2.9.2"
+	jacksonDataformatYamlModule = "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.9.2"
+	jacksonDataformatYamlModule = "com.fasterxml.jackson.dataformat:jackson-dataformat-protobuf:2.9.2"
+	jacksonDatatypeJSR310Module = "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.9.2"
+	woodstockCoreAslModule = "org.codehaus.woodstox:woodstox-core-asl:4.4.1"
 	vertxWebModule = "io.vertx:vertx-web:3.5.0"
 
 	junitModule = "junit:junit:4.12"

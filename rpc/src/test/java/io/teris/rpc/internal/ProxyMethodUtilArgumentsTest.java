@@ -23,7 +23,6 @@ import java.util.Map.Entry;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
@@ -136,14 +135,13 @@ public class ProxyMethodUtilArgumentsTest {
 		done.get();
 	}
 
-	@Ignore("FIXME unsure how to get and check type of elements for arrays")
 	@Test
 	public void arguments_nonSerializableVararg_throws() throws Exception {
 		CompletableFuture<Entry<Context, LinkedHashMap<String, Serializable>>> done = new CompletableFuture<>();
 		FailingArgs s = Proxier.get(FailingArgs.class, done);
 		s.nonSerializableVararg(context, "a", "b", "c");
 		exception.expect(ExecutionException.class);
-		exception.expectMessage("Argument types of the service method 'nonSerializableVararg' must implement Serializable or be void");
+		exception.expectMessage("Failed to invoke FailingArgs.nonSerializableVararg: arguments must implement Serializable");
 		done.get();
 	}
 

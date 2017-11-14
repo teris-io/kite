@@ -4,6 +4,7 @@
 package io.teris.rpc;
 
 import java.io.Serializable;
+import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.HashMap;
@@ -65,11 +66,16 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 		}
 
 		@Nonnull
-		public <S> Builder bind(@Nonnull Class<S> serviceClass, @Nonnull S service) throws ServiceException {
+		public <S> Builder bind(@Nonnull Class<S> serviceClass, @Nonnull S service) throws InstantiationException {
 			ServiceValidator.validate(serviceClass);
 			for (Method method : serviceClass.getDeclaredMethods()) {
-				String route = ProxyMethodUtil.route(method);
-				this.endpoints.put(route, new SimpleEntry<>(service, method));
+				try {
+					String route = ProxyMethodUtil.route(method);
+					this.endpoints.put(route, new SimpleEntry<>(service, method));
+				}
+				catch (InvocationException ex) {
+					throw new InstantiationException(serviceClass, ex);
+				}
 			}
 			return this;
 		}
@@ -113,6 +119,9 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 		Object callResult;
 		try {
 			callResult = method.invoke(service, callArgs);
+		}
+		catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException ex) {
+			return completer.complete(method, new InvocationException(method, ex));
 		}
 		catch (Exception ex) {
 			return completer.complete(method, new BusinessException(ex));

@@ -11,6 +11,7 @@ import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -50,6 +51,10 @@ public class ProxyMethodUtilReturnTypeTest {
 		Object nonSerializable();
 
 		CompletableFuture<Object> nonSerializableAsync();
+
+		Object[] nonSerializableArray();
+
+		Integer[] serializableArray();
 	}
 
 	@Test
@@ -104,6 +109,22 @@ public class ProxyMethodUtilReturnTypeTest {
 		s.nonSerializableAsync().get();
 	}
 
+	@Test
+	public void return_nonSerializable_array_throws() throws Exception {
+		Object data = Void.class;
+
+		NonGenericsReturnValueService s = Proxier.get(NonGenericsReturnValueService.class, data);
+		exception.expect(RuntimeException.class);
+		exception.expectMessage("Failed to invoke NonGenericsReturnValueService.nonSerializableArray: return type must implement Serializable or be void/Void");
+		s.nonSerializableArray();
+	}
+
+	@Test
+	public void return_serializable_array_success() throws Exception {
+		Integer[] data = new Integer[]{ Integer.valueOf(25) };
+		NonGenericsReturnValueService s = Proxier.get(NonGenericsReturnValueService.class, data);
+		assertTrue(Arrays.equals(new Integer[]{ Integer.valueOf(25) }, s.serializableArray()));
+	}
 
 	interface GenericsReturnValueService {
 
