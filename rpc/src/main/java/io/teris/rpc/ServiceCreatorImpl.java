@@ -24,14 +24,14 @@ import io.teris.rpc.internal.ProxyMethodUtil;
 
 
 /**
- * Provides the default implementation of the ServiceFactory that implements the
+ * Provides the default implementation of the ServiceCreator that implements the
  * creation of service proxies based on parametrizable serializer and
  */
-class ServiceFactoryImpl implements ServiceFactory {
+class ServiceCreatorImpl implements ServiceCreator {
 
 	private final InvocationHandler invocationHandler;
 
-	ServiceFactoryImpl(ServiceInvoker serviceInvoker, Serializer serializer, Map<String, Deserializer> deserializerMap) {
+	ServiceCreatorImpl(ServiceInvoker serviceInvoker, Serializer serializer, Map<String, Deserializer> deserializerMap) {
 		this.invocationHandler = new ClientServiceInvocationHandler(serviceInvoker, serializer, deserializerMap);
 	}
 
@@ -48,7 +48,7 @@ class ServiceFactoryImpl implements ServiceFactory {
 		}
 	}
 
-	static class BuilderImpl implements ServiceFactory.Builder {
+	static class BuilderImpl implements ServiceCreator.Builder {
 
 		private ServiceInvoker serviceInvoker = null;
 
@@ -86,10 +86,10 @@ class ServiceFactoryImpl implements ServiceFactory {
 
 		@Nonnull
 		@Override
-		public ServiceFactory build() {
+		public ServiceCreator build() {
 			Objects.requireNonNull(serviceInvoker, "Missing remote caller for an instance of the client service factory");
 			Objects.requireNonNull(serializer, "Missing serializer for an instance of the client service factory");
-			return new ServiceFactoryImpl(serviceInvoker, serializer, deserializerMap);
+			return new ServiceCreatorImpl(serviceInvoker, serializer, deserializerMap);
 		}
 	}
 
@@ -156,9 +156,21 @@ class ServiceFactoryImpl implements ServiceFactory {
 				CompletableFuture<Entry<Context, byte[]>> responsePromise =	serviceInvoker.call(routingKey, context, data);
 				return responsePromise.thenApply(entry -> {
 					Context responseContext = entry.getKey();
+					context.putAll(responseContext);
 					Deserializer deserializer = deserializerMap.getOrDefault(responseContext.get(Context.CONTENT_TYPE_KEY), serializer.deserializer());
 					byte[] response = entry.getValue();
-					return response != null ? deserializer.deserialize(response, type) : null;
+					if (response == null) {
+						return null;
+					}
+					try {
+						throw deserializer.deserialize(response, ServiceException.class);
+					}
+					catch (RuntimeException ex) {
+						return deserializer.deserialize(response, type);
+					}
+					catch (ServiceException ex) {
+						throw new RuntimeException(ex);
+					}
 				});
 			}
 			catch (RuntimeException ex) {

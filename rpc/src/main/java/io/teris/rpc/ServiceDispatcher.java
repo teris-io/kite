@@ -12,7 +12,10 @@ import javax.annotation.Nonnull;
 public interface ServiceDispatcher extends ServiceInvoker {
 
 	@Nonnull
-	Set<String> endpoints();
+	Serializer serializer();
+
+	@Nonnull
+	Set<String> dispatchRoutes();
 
 	@Nonnull
 	static Builder builder() {

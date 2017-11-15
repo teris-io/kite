@@ -30,6 +30,25 @@ allprojects {
 subprojects {
   plugins.apply(JavaPlugin)
 
+	configurations {
+		integration
+
+		integrationTestCompile.extendsFrom(testCompile)
+		integrationTestRuntime.extendsFrom(testRuntime)
+	}
+
+	sourceSets {
+		integration {
+			compileClasspath += sourceSets.test.compileClasspath + main.output + test.output
+			runtimeClasspath += sourceSets.test.runtimeClasspath + main.output + test.output
+		}
+	}
+
+	tasks.withType(AbstractCompile) {
+		sourceCompatibility = 1.8
+		targetCompatibility = 1.8
+	}
+
 	test.jacoco {
 		append = false
 		destinationFile = Paths.get(rootProject.buildDir.absolutePath, "jacoco", project.name + ".exec").toFile()

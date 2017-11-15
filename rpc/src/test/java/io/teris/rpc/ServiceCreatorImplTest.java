@@ -20,12 +20,12 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import io.teris.rpc.ServiceFactoryImpl.ClientServiceInvocationHandler;
+import io.teris.rpc.ServiceCreatorImpl.ClientServiceInvocationHandler;
 import io.teris.rpc.testfixture.JsonDeserializer;
 import io.teris.rpc.testfixture.JsonSerializer;
 
 
-public class ServiceFactoryImplTest {
+public class ServiceCreatorImplTest {
 
 	@Rule
 	public ExpectedException exception = ExpectedException.none();

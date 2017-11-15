@@ -10,12 +10,12 @@ import javax.annotation.Nonnull;
 /**
  * Defines the base class for all service related exceptions.
  */
-public abstract class ServiceException extends Exception {
+public class ServiceException extends Exception {
 
 	/**
 	 * Constructs a ServiceException with the specified detail message.
 	 */
-	ServiceException(@Nonnull String message) {
+	public ServiceException(@Nonnull String message) {
 		super(message);
 	}
 
@@ -25,7 +25,7 @@ public abstract class ServiceException extends Exception {
 	 * not available on the caller side, only the stacktrace and the message are preserved
 	 * from the cause, but not the instance.
 	 */
-	ServiceException(@Nonnull String message, @Nonnull Throwable cause) {
+	public ServiceException(@Nonnull String message, @Nonnull Throwable cause) {
 		super(String.format("%s [caused by %s%s]",
 			message,
 			cause.getClass().getSimpleName(),
@@ -39,7 +39,7 @@ public abstract class ServiceException extends Exception {
 	 * class is not available on the caller side, only the stacktrace and the message
 	 * are preserved from the cause, but not the instance.
 	 */
-	ServiceException(@Nonnull Throwable cause) {
+	public ServiceException(@Nonnull Throwable cause) {
 		super(String.format("%s%s",
 			cause.getClass().getSimpleName(),
 			cause.getMessage() != null ? ": " + cause.getMessage() : ""));

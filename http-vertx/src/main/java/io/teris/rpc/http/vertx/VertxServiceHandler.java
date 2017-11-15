@@ -4,32 +4,68 @@
 
 package io.teris.rpc.http.vertx;
 
+import java.util.Collections;
+import java.util.Map.Entry;
+import java.util.Set;
+import java.util.stream.Collectors;
 
+import io.teris.rpc.Context;
 import io.teris.rpc.ServiceDispatcher;
 import io.vertx.core.Handler;
-import io.vertx.core.http.HttpMethod;
-import io.vertx.ext.web.Router;
+import io.vertx.core.buffer.Buffer;
+import io.vertx.core.http.HttpServerResponse;
 import io.vertx.ext.web.RoutingContext;
 
 
-// FIXME need a router instead, with two-steps: configuration, then binding (routing)
+class VertxServiceHandler extends RoutingBase implements Handler<RoutingContext> {
 
-public interface VertxServiceHandler extends Handler<RoutingContext> {
+	private final ServiceDispatcher serviceDispatcher;
 
-	static Builder builder(Router router) {
-		return new VertxServiceHandlerImpl.BuilderImpl(router);
+	VertxServiceHandler(String uriPrefix, ServiceDispatcher serviceDispatcher) {
+		super(uriPrefix);
+		this.serviceDispatcher = serviceDispatcher;
 	}
 
-	interface Builder {
+	Set<String> dispatchUris() {
+		return Collections.unmodifiableSet(serviceDispatcher.dispatchRoutes()
+			.stream()
+			.map(this::routeToUri)
+			.collect(Collectors.toSet()));
+	}
 
-		Builder uriPrefix(String uriPrefix);
+	@Override
+	public void handle(RoutingContext httpContext) {
+		String route = uriToRoute(httpContext.request().uri());
+		Context incomingContext = new Context();
+		for (String headerKey : httpContext.request().headers().names()) {
+			incomingContext.put(headerKey, httpContext.request().getHeader(headerKey));
+		}
+		byte[] incomingData = httpContext.getBody().getBytes();
 
-		Builder method(HttpMethod method);
-
-		Builder preconditioner(Handler<RoutingContext> preconditioner);
-
-		Builder bind(ServiceDispatcher serviceDispatcher);
-
-		VertxServiceHandler build();
+		serviceDispatcher
+			.call(route, incomingContext, incomingData)
+			.handleAsync((entry, t) -> {
+				HttpServerResponse httpResponse = httpContext.response();
+				// it is expected that all exceptions are serialized as normal response (unless exactly that failed)
+				if (t instanceof Exception || entry == null) {
+					httpResponse
+						.setStatusCode(500)
+						.setStatusMessage(t != null ? t.getMessage() : "Server error: null response in the service future")
+						.end();
+					return null;
+				}
+				Context outgoingContext = entry.getKey() != null ? entry.getKey() : incomingContext;
+				for (Entry<String, String> headerEntry : outgoingContext.entrySet()) {
+					httpResponse.putHeader(headerEntry.getKey(), headerEntry.getValue());
+				}
+				httpResponse.setChunked(true).setStatusCode(200);
+				if (entry.getValue() != null) {
+					httpResponse.end(Buffer.buffer(entry.getValue()));
+				}
+				else {
+					httpResponse.end();
+				}
+				return null;
+			});
 	}
 }

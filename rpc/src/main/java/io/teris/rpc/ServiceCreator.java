@@ -8,7 +8,7 @@ import java.util.Map;
 import javax.annotation.Nonnull;
 
 
-public interface ServiceFactory {
+public interface ServiceCreator {
 
 	/**
 	 * Creates a client service factory instance that can generate service proxies
@@ -23,9 +23,8 @@ public interface ServiceFactory {
 	/**
 	 * @return a new instance of the client service factory builder.
 	 */
-	@Nonnull
 	static Builder builder() {
-		return new ServiceFactoryImpl.BuilderImpl();
+		return new ServiceCreatorImpl.BuilderImpl();
 	}
 
 	/**
@@ -64,6 +63,6 @@ public interface ServiceFactory {
 		 * Builds an instance of the client service factory.
 		 */
 		@Nonnull
-		ServiceFactory build();
+		ServiceCreator build();
 	}
 }
