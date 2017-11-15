@@ -9,11 +9,14 @@ import static org.junit.Assert.assertEquals;
 import java.io.IOException;
 import java.net.ServerSocket;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 import io.teris.rpc.Context;
 import io.teris.rpc.Name;
@@ -30,12 +33,19 @@ import io.vertx.ext.web.Router;
 
 public class VertxServiceInvokerTest {
 
+	@Rule
+	public ExpectedException exception = ExpectedException.none();
+
 	@Service
 	public interface AService {
 
 		Double add(Context context, @Name("a") Double a, @Name("b") Double b);
 
 		CompletableFuture<Double> subtract(Context context, @Name("c") Double c, @Name("d") Double d);
+
+		Double divide(Context context, @Name("a") Double a, @Name("b") Double b);
+
+		CompletableFuture<Double> divide2(Context context, @Name("a") Double a, @Name("b") Double b);
 	}
 
 	private static class AServiceImpl implements AService {
@@ -50,6 +60,18 @@ public class VertxServiceInvokerTest {
 		public CompletableFuture<Double> subtract(Context context, Double c, Double d) {
 			context.put("remote-invocation", "subtract");
 			return CompletableFuture.supplyAsync(() -> Double.valueOf(c.doubleValue() - d.doubleValue()));
+		}
+
+		@Override
+		public Double divide(Context context, Double a, Double b) {
+			context.put("remote-invocation", "divide");
+			return Double.valueOf(a.doubleValue() / b.doubleValue());
+		}
+
+		@Override
+		public CompletableFuture<Double> divide2(Context context, Double a, Double b) {
+			context.put("remote-invocation", "divide2");
+			return CompletableFuture.supplyAsync(() -> Double.valueOf(a.doubleValue() / b.doubleValue()));
 		}
 	}
 
@@ -135,5 +157,34 @@ public class VertxServiceInvokerTest {
 		CompletableFuture<Double> promise = service.subtract(context, Double.valueOf(359.3), Double.valueOf(341.2));
 		assertEquals(18.1, promise.get().doubleValue(), 0.001);
 		assertEquals("subtract", context.get("remote-invocation"));
+	}
+
+	@Test
+	public void invoke_sync_exception_success() {
+		Context context = new Context();
+		exception.expect(RuntimeException.class);
+		exception.expectMessage("Infinity");
+		service.divide(context, Double.valueOf(359.3), Double.valueOf(0.0));
+	}
+
+	@Test
+	public void invoke_sync_exception_success_contextUpdate() {
+		Context context = new Context();
+		try {
+			service.divide(context, Double.valueOf(359.3), Double.valueOf(0.0));
+			throw new AssertionError("unreachable code");
+		}
+		catch (RuntimeException ex) {
+			assertEquals("divide", context.get("remote-invocation"));
+		}
+	}
+
+	@Test
+	public void invoke_async_exception_success() throws Exception {
+		Context context = new Context();
+		CompletableFuture<Double> promise = service.divide2(context, Double.valueOf(359.3), Double.valueOf(0.0));
+		exception.expect(ExecutionException.class);
+		exception.expectMessage("Infinity");
+		promise.get();
 	}
 }
