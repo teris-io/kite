@@ -21,6 +21,7 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import io.teris.rpc.internal.ProxyMethodUtil;
+import io.teris.rpc.internal.ResponseFields;
 import io.teris.rpc.internal.ServiceArgDeserializer;
 import io.teris.rpc.internal.ServiceValidator;
 
@@ -160,40 +161,40 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 
 
 	public CompletableFuture<Entry<Context, byte[]>> complete(Context context) {
-		return CompletableFuture.completedFuture(new SimpleEntry<>(context, null));
+		return complete(context, (Serializable) null);
 	}
 
 	public CompletableFuture<Entry<Context, byte[]>> complete(Context context, Serializable returnValue) {
 		return CompletableFuture.supplyAsync(() -> {
+			HashMap<String, Serializable> res = new HashMap<>();
+			res.put(ResponseFields.PAYLOAD, returnValue);
 			// throw here is the only reason for the future to complete exceptionally
-			byte[] outgoing = serializer.serialize(returnValue);
-			return new SimpleEntry<>(context, outgoing);
+			return new SimpleEntry<>(context, serializer.serialize(res));
 		});
 	}
 
 	public CompletableFuture<Entry<Context, byte[]>> complete(Context context, CompletableFuture<?> returnValue) {
 		CompletableFuture<Entry<Context, byte[]>> promise = new CompletableFuture<>();
 		returnValue.handleAsync((obj, t) -> {
-			Serializable res;
+			HashMap<String, Serializable> res = new HashMap<>();
 			if (t != null) {
-				res = new BusinessException(t);
+				res.put(ResponseFields.EXCEPTION, new BusinessException(t));
+				res.put(ResponseFields.ERROR_MESSAGE, t.getMessage() != null ? t.getMessage() : t.toString());
 			}
 			else if (obj == null || void.class.isAssignableFrom(obj.getClass()) || Void.class.isAssignableFrom(obj.getClass())) {
-				res = null;
+				res.put(ResponseFields.PAYLOAD, null);
 			}
 			else if (obj instanceof Serializable) {
-				res = (Serializable) obj;
+				res.put(ResponseFields.PAYLOAD, (Serializable) obj);
 			}
 			else {
-				res = new TechnicalException("Returned value is neither Serializable nor void");
+				String message = "Returned value is neither Serializable nor void";
+				res.put(ResponseFields.EXCEPTION, new TechnicalException(message));
+				res.put(ResponseFields.ERROR_MESSAGE, message);
 			}
 			try {
-				byte[] outgoing = null;
-				if (res != null) {
-					// throw here is the only reason for the future to complete exceptionally
-					outgoing = serializer.serialize(res);
-				}
-				promise.complete(new SimpleEntry<>(context, outgoing));
+				// throw here is the only reason for the future to complete exceptionally
+				promise.complete(new SimpleEntry<>(context, serializer.serialize(res)));
 			}
 			catch (Exception ex) {
 				promise.completeExceptionally(ex);
@@ -205,31 +206,31 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 
 	public CompletableFuture<Entry<Context, byte[]>> complete(Context context, Future returnValue) {
 		return CompletableFuture.supplyAsync(() -> {
-			Serializable res;
+			HashMap<String, Serializable> res = new HashMap<>();
 			try {
 				Object obj = returnValue.get();
 				if (obj == null || void.class.isAssignableFrom(obj.getClass()) || Void.class.isAssignableFrom(obj.getClass())) {
-					res = null;
+					res.put(ResponseFields.PAYLOAD, null);
 				}
 				else if (obj instanceof Serializable) {
-					res = (Serializable) obj;
+					res.put(ResponseFields.PAYLOAD, (Serializable) obj);
 				}
 				else {
-					res = new TechnicalException("Returned value is neither Serializable nor void");
+					String message = "Returned value is neither Serializable nor void";
+					res.put(ResponseFields.EXCEPTION, new TechnicalException(message));
+					res.put(ResponseFields.ERROR_MESSAGE, message);
 				}
 			}
 			catch (ExecutionException ex) {
-				res = new BusinessException(ex.getCause());
+				res.put(ResponseFields.EXCEPTION, new BusinessException(ex.getCause()));
+				res.put(ResponseFields.ERROR_MESSAGE, ex.getCause().getMessage() != null ? ex.getCause().getMessage() : ex.getCause().toString());
 			}
 			catch (InterruptedException ex) {
-				res = new BusinessException(ex);
+				res.put(ResponseFields.EXCEPTION, new BusinessException(ex));
+				res.put(ResponseFields.ERROR_MESSAGE, ex.getMessage() != null ? ex.getMessage() : ex.toString());
 			}
-			byte[] outgoing = null;
-			if (res != null) {
-				// throw here is the only reason for the future to complete exceptionally
-				outgoing = serializer.serialize(res);
-			}
-			return new SimpleEntry<>(context, outgoing);
+			// throw here is the only reason for the future to complete exceptionally
+			return new SimpleEntry<>(context, serializer.serialize(res));
 		});
 	}
 

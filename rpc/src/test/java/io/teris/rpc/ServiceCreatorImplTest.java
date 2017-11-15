@@ -58,7 +58,7 @@ public class ServiceCreatorImplTest {
 	@Test
 	public void voidSyncReturn_nonNullTransfer_throws() {
 		// looks like accepted value for void (so it should actually fail trying to find deserializer)
-		ServiceInvoker requester = remoteCallerMock("true".getBytes());
+		ServiceInvoker requester = remoteCallerMock("{\"payload\": \"true\"}".getBytes());
 		ClientServiceInvocationHandler handler = new ClientServiceInvocationHandler(requester, serializer, deserializerMap);
 		VoidService s = getProxy(VoidService.class, handler);
 		exception.expect(RuntimeException.class);
@@ -78,7 +78,7 @@ public class ServiceCreatorImplTest {
 	@Test
 	public void voidAsyncReturn_nonNullTransfer_throws() throws Exception {
 		// looks like accepted value for void (so it should actually fail trying to find deserializer)
-		ServiceInvoker requester = remoteCallerMock("true".getBytes());
+		ServiceInvoker requester = remoteCallerMock("{\"payload\": \"true\"}".getBytes());
 		ClientServiceInvocationHandler handler = new ClientServiceInvocationHandler(requester, serializer, deserializerMap);
 		VoidService s = getProxy(VoidService.class, handler);
 		CompletableFuture<Void> future = s.voidableAsync(new Context());

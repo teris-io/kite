@@ -21,6 +21,7 @@ import java.util.concurrent.Future;
 import javax.annotation.Nonnull;
 
 import io.teris.rpc.internal.ProxyMethodUtil;
+import io.teris.rpc.internal.ResponseFields;
 
 
 /**
@@ -144,6 +145,8 @@ class ServiceCreatorImpl implements ServiceCreator {
 			}
 		}
 
+		private static class Typedef extends HashMap<String, Serializable> {}
+
 		private <RS extends Serializable> CompletableFuture<RS> callRemote(Method method, Object[] args) {
 			try {
 				Type type = ProxyMethodUtil.returnType(method);
@@ -156,21 +159,24 @@ class ServiceCreatorImpl implements ServiceCreator {
 				CompletableFuture<Entry<Context, byte[]>> responsePromise =	serviceInvoker.call(routingKey, context, data);
 				return responsePromise.thenApply(entry -> {
 					Context responseContext = entry.getKey();
-					context.putAll(responseContext);
-					Deserializer deserializer = deserializerMap.getOrDefault(responseContext.get(Context.CONTENT_TYPE_KEY), serializer.deserializer());
-					byte[] response = entry.getValue();
-					if (response == null) {
+					if (responseContext != null) {
+						context.putAll(responseContext);
+					}
+					byte[] responseData = entry.getValue();
+					if (responseData == null) {
 						return null;
 					}
-					try {
-						throw deserializer.deserialize(response, ServiceException.class);
+
+					Deserializer deserializer = deserializerMap.getOrDefault(context.get(Context.CONTENT_TYPE_KEY), serializer.deserializer());
+					HashMap<String, Serializable> response = deserializer.deserialize(responseData, Typedef.class.getGenericSuperclass());
+
+					byte[] responseException = (byte[]) response.get(ResponseFields.EXCEPTION);
+					if (responseException != null) {
+						throw deserializer.deserialize(responseException, RuntimeException.class);
 					}
-					catch (RuntimeException ex) {
-						return deserializer.deserialize(response, type);
-					}
-					catch (ServiceException ex) {
-						throw new RuntimeException(ex);
-					}
+
+					byte[] responsePayload = (byte[]) response.get(ResponseFields.PAYLOAD);
+					return responsePayload != null ? deserializer.deserialize(responsePayload, type) : null;
 				});
 			}
 			catch (RuntimeException ex) {
