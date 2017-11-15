@@ -10,3 +10,5 @@ build/
 # gradle metadata and user-specific settings
 .gradle
 gradle.properties
+
+.vertx/
