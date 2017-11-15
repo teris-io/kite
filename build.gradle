@@ -57,9 +57,11 @@ subprojects {
 		targetCompatibility = 1.8
 	}
 
-	test.jacoco {
-		append = false
-		destinationFile = Paths.get(rootProject.buildDir.absolutePath, "jacoco", project.name + ".exec").toFile()
+	tasks.withType(Test) {
+		jacoco {
+			append = true
+			destinationFile = Paths.get(rootProject.buildDir.absolutePath, "jacoco", project.name + "-" + name + ".exec").toFile()
+		}
 	}
 
 	jacocoTestReport.reports {
@@ -92,7 +94,7 @@ task("clean", type: Delete) {
 }
 
 task("coverage", type: JacocoReport) {
-	dependsOn(subprojects*.test)
+	dependsOn(subprojects*.integration)
 
 	executionData(fileTree(Paths.get(rootProject.buildDir.absolutePath, "jacoco").toFile()).include("*.exec"))
 
