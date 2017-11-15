@@ -104,12 +104,12 @@ public class VertxServiceInvokerTest {
 			.httpClientOptions(httpClientOptions)
 			.build();
 
-		ServiceCreator factory = ServiceCreator.builder()
+		ServiceCreator creator = ServiceCreator.builder()
 			.serviceInvoker(invoker)
 			.serializer(new JsonSerializer())
 			.build();
 
-		service = factory.newInstance(AService.class);
+		service = creator.newInstance(AService.class);
 
 		// http server listening on localhost:port and dispatching to the actual implementation
 

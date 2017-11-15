@@ -29,6 +29,7 @@ allprojects {
 
 subprojects {
   plugins.apply(JavaPlugin)
+	plugins.apply(MavenPlugin)
 
 	configurations {
 		integration
@@ -42,6 +43,13 @@ subprojects {
 			compileClasspath += sourceSets.test.compileClasspath + main.output + test.output
 			runtimeClasspath += sourceSets.test.runtimeClasspath + main.output + test.output
 		}
+	}
+
+	task("integration", type: Test) {
+		dependsOn(subprojects*.test)
+		description = "Run integration tests from in [src/]integration/..."
+		setTestClassesDirs(sourceSets.integration.output.classesDirs)
+		setClasspath(sourceSets.integration.runtimeClasspath)
 	}
 
 	tasks.withType(AbstractCompile) {
@@ -59,6 +67,23 @@ subprojects {
 		html.enabled = false
 		csv.enabled = false
 	}
+
+	task("sourcesJar", type: Jar, dependsOn: classes) {
+		classifier = "sources"
+		from(sourceSets.main.allSource)
+	}
+
+	javadoc {
+		failOnError false
+	}
+
+	task("javadocJar", type: Jar, dependsOn: javadoc) {
+		classifier = "javadoc"
+		from(javadoc.destinationDir)
+	}
+
+	artifacts.add("archives", sourcesJar)
+	artifacts.add("archives", javadocJar)
 }
 
 task("clean", type: Delete) {

@@ -18,4 +18,4 @@ cache:
     - $HOME/.gradle/wrapper/
 
 script:
-  - ./gradlew clean build test integration coverage
+  - ./gradlew clean build test coverage
