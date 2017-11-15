@@ -173,6 +173,15 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 		});
 	}
 
+	public CompletableFuture<Entry<Context, byte[]>> complete(Context context, Throwable t) {
+		return CompletableFuture.supplyAsync(() -> {
+			HashMap<String, Serializable> res = new HashMap<>();
+			res.put(ResponseFields.EXCEPTION, t);
+			// throw here is the only reason for the future to complete exceptionally
+			return new SimpleEntry<>(context, serializer.serialize(res));
+		});
+	}
+
 	public CompletableFuture<Entry<Context, byte[]>> complete(Context context, CompletableFuture<?> returnValue) {
 		CompletableFuture<Entry<Context, byte[]>> promise = new CompletableFuture<>();
 		returnValue.handleAsync((obj, t) -> {

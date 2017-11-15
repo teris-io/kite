@@ -43,9 +43,9 @@ public class VertxServiceInvokerTest {
 
 		CompletableFuture<Double> subtract(Context context, @Name("c") Double c, @Name("d") Double d);
 
-		Double divide(Context context, @Name("a") Double a, @Name("b") Double b);
+		Double exceptionally(Context context);
 
-		CompletableFuture<Double> divide2(Context context, @Name("a") Double a, @Name("b") Double b);
+		CompletableFuture<Double> completingExceptionally(Context context);
 	}
 
 	private static class AServiceImpl implements AService {
@@ -63,15 +63,15 @@ public class VertxServiceInvokerTest {
 		}
 
 		@Override
-		public Double divide(Context context, Double a, Double b) {
-			context.put("remote-invocation", "divide");
-			return Double.valueOf(a.doubleValue() / b.doubleValue());
+		public Double exceptionally(Context context) {
+			context.put("remote-invocation", "exceptionally");
+			return Double.valueOf("abc");
 		}
 
 		@Override
-		public CompletableFuture<Double> divide2(Context context, Double a, Double b) {
-			context.put("remote-invocation", "divide2");
-			return CompletableFuture.supplyAsync(() -> Double.valueOf(a.doubleValue() / b.doubleValue()));
+		public CompletableFuture<Double> completingExceptionally(Context context) {
+			context.put("remote-invocation", "completingExceptionally");
+			return CompletableFuture.supplyAsync(() -> Double.valueOf("abc"));
 		}
 	}
 
@@ -163,28 +163,28 @@ public class VertxServiceInvokerTest {
 	public void invoke_sync_exception_success() {
 		Context context = new Context();
 		exception.expect(RuntimeException.class);
-		exception.expectMessage("Infinity");
-		service.divide(context, Double.valueOf(359.3), Double.valueOf(0.0));
+		exception.expectMessage("Failed to invoke AService.exceptionally [caused by InvocationTargetException]");
+		service.exceptionally(context);
 	}
 
 	@Test
 	public void invoke_sync_exception_success_contextUpdate() {
 		Context context = new Context();
 		try {
-			service.divide(context, Double.valueOf(359.3), Double.valueOf(0.0));
+			service.exceptionally(context);
 			throw new AssertionError("unreachable code");
 		}
 		catch (RuntimeException ex) {
-			assertEquals("divide", context.get("remote-invocation"));
+			assertEquals("exceptionally", context.get("remote-invocation"));
 		}
 	}
 
 	@Test
 	public void invoke_async_exception_success() throws Exception {
 		Context context = new Context();
-		CompletableFuture<Double> promise = service.divide2(context, Double.valueOf(359.3), Double.valueOf(0.0));
+		CompletableFuture<Double> promise = service.completingExceptionally(context);
 		exception.expect(ExecutionException.class);
-		exception.expectMessage("Infinity");
+		exception.expectMessage("CompletionException: java.lang.NumberFormatException: For input string: \"abc\"");
 		promise.get();
 	}
 }
