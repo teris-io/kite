@@ -96,12 +96,6 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 
 	@Nonnull
 	@Override
-	public Serializer serializer() {
-		return serializer;
-	}
-
-	@Nonnull
-	@Override
 	public Set<String> dispatchRoutes() {
 		return Collections.unmodifiableSet(new TreeSet<>(endpoints.keySet()));
 	}

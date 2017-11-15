@@ -5,14 +5,17 @@
 package io.teris.rpc;
 
 import java.util.Map;
+import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 
-public interface ServiceDispatcher extends ServiceInvoker {
+public interface ServiceDispatcher {
 
 	@Nonnull
-	Serializer serializer();
+	CompletableFuture<Entry<Context, byte[]>> call(@Nonnull String route, @Nonnull Context context, @Nullable byte[] data);
 
 	@Nonnull
 	Set<String> dispatchRoutes();
