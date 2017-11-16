@@ -106,11 +106,11 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 		CompletableFuture<Object> invocation = new CompletableFuture<>();
 		Entry<Object, Method> endpoint = endpoints.get(route);
 		if (endpoint != null) {
+			Deserializer deserializer = deserializerMap.getOrDefault(context.get(Context.CONTENT_TYPE_KEY),
+				serializer.deserializer());
 			Method method = endpoint.getValue();
 			Object service = endpoint.getKey();
 
-			Deserializer deserializer =
-				deserializerMap.getOrDefault(context.get(Context.CONTENT_TYPE_KEY), serializer.deserializer());
 			new ServiceArgDeserializer().deserialize(deserializer, context, method, incoming)
 				.thenAccept(args -> {
 					if (CompletableFuture.class.isAssignableFrom(method.getReturnType())) {
