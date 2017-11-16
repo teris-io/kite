@@ -18,7 +18,7 @@ public interface ServiceCreator {
 	 * @throws InstantiationException when no instance can be constructes for any reason.
 	 */
 	@Nonnull
-	<S> S newInstance(@Nonnull Class<S> serviceClass) throws InstantiationException;
+	<S> S newInstance(@Nonnull Class<S> serviceClass) throws InvocationException;
 
 	/**
 	 * @return a new instance of the client service factory builder.

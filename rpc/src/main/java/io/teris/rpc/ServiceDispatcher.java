@@ -48,7 +48,7 @@ public interface ServiceDispatcher {
 		Builder deserializers(@Nonnull Map<String, Deserializer> deserializerMap);
 
 		@Nonnull
-		<S> Builder bind(@Nonnull Class<S> serviceClass, @Nonnull S service) throws ServiceException;
+		<S> Builder bind(@Nonnull Class<S> serviceClass, @Nonnull S service) throws InvocationException;
 
 		@Nonnull
 		ServiceDispatcher build();

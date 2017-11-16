@@ -17,11 +17,11 @@ import io.vertx.core.http.HttpServerResponse;
 import io.vertx.ext.web.RoutingContext;
 
 
-class VertxServiceHandler extends RoutingBase implements Handler<RoutingContext> {
+class VertxDispatchingHandler extends RoutingBase implements Handler<RoutingContext> {
 
 	private final ServiceDispatcher serviceDispatcher;
 
-	VertxServiceHandler(String uriPrefix, ServiceDispatcher serviceDispatcher) {
+	VertxDispatchingHandler(String uriPrefix, ServiceDispatcher serviceDispatcher) {
 		super(uriPrefix);
 		this.serviceDispatcher = serviceDispatcher;
 	}

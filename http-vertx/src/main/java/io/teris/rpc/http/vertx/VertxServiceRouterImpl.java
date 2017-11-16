@@ -75,14 +75,14 @@ class VertxServiceRouterImpl implements VertxServiceRouter {
 	@Nonnull
 	@Override
 	public VertxServiceRouter route(@Nonnull ServiceDispatcher serviceDispatcher) {
-		VertxServiceHandler businessHandler = new VertxServiceHandler(uriPrefix, serviceDispatcher);
+		VertxDispatchingHandler dispatchingHandler = new VertxDispatchingHandler(uriPrefix, serviceDispatcher);
 
-		for (String uri: businessHandler.dispatchUris()) {
+		for (String uri: dispatchingHandler.dispatchUris()) {
 			Route x = router.post(uri);
 			for (Handler<RoutingContext> preconditioner: preconditioners) {
 				x = x.handler(preconditioner);
 			}
-			x.handler(businessHandler);
+			x.handler(dispatchingHandler);
 		}
 		return this;
 	}

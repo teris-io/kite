@@ -81,7 +81,7 @@ public class ProxyMethodUtilArgumentsTest {
 		FailingArgs s = Proxier.get(FailingArgs.class, done);
 		s.noContext("title");
 		exception.expect(ExecutionException.class);
-		exception.expectMessage("Failed to invoke FailingArgs.noContext: first argument must be an instance of Context");
+		exception.expectMessage("InvocationException: First parameters to FailingArgs.noContext must be Context");
 		done.get();
 	}
 
@@ -91,7 +91,7 @@ public class ProxyMethodUtilArgumentsTest {
 		FailingArgs s = Proxier.get(FailingArgs.class, done);
 		s.emptyContext(null);
 		exception.expect(ExecutionException.class);
-		exception.expectMessage("Failed to invoke FailingArgs.emptyContext: first argument must be an instance of Context");
+		exception.expectMessage("InvocationException: First argument to FailingArgs.emptyContext must be a (non-null) instance of Context");
 		done.get();
 	}
 
@@ -101,7 +101,7 @@ public class ProxyMethodUtilArgumentsTest {
 		FailingArgs s = Proxier.get(FailingArgs.class, done);
 		s.noargs();
 		exception.expect(ExecutionException.class);
-		exception.expectMessage("Failed to invoke FailingArgs.noargs: first argument must be an instance of Context");
+		exception.expectMessage("InvocationException: First parameters to FailingArgs.noargs must be Context");
 		done.get();
 	}
 
@@ -111,7 +111,7 @@ public class ProxyMethodUtilArgumentsTest {
 		FailingArgs s = Proxier.get(FailingArgs.class, done);
 		s.unannotated(context,"a", Integer.valueOf(25));
 		exception.expect(ExecutionException.class);
-		exception.expectMessage("Failed to invoke FailingArgs.unannotated: all arguments except for the first one must be annotated with @Name");
+		exception.expectMessage("InvocationException: After Context all parameters in FailingArgs.unannotated must be annotated with @Name");
 		done.get();
 	}
 
@@ -121,7 +121,7 @@ public class ProxyMethodUtilArgumentsTest {
 		FailingArgs s = Proxier.get(FailingArgs.class, done);
 		s.wildcard(context, new ArrayList<>());
 		exception.expect(ExecutionException.class);
-		exception.expectMessage("Failed to invoke FailingArgs.wildcard: argument types must contain no wildcards");
+		exception.expectMessage("InvocationException: Parameter types in FailingArgs.wildcard must contain no wildcards");
 		done.get();
 	}
 
@@ -131,7 +131,7 @@ public class ProxyMethodUtilArgumentsTest {
 		FailingArgs s = Proxier.get(FailingArgs.class, done);
 		s.nonSerializable(context, "a");
 		exception.expect(ExecutionException.class);
-		exception.expectMessage("Failed to invoke FailingArgs.nonSerializable: arguments must implement Serializable");
+		exception.expectMessage("InvocationException: After Context all parameter types in FailingArgs.nonSerializable must implement Serializable");
 		done.get();
 	}
 
@@ -141,7 +141,7 @@ public class ProxyMethodUtilArgumentsTest {
 		FailingArgs s = Proxier.get(FailingArgs.class, done);
 		s.nonSerializableVararg(context, "a", "b", "c");
 		exception.expect(ExecutionException.class);
-		exception.expectMessage("Failed to invoke FailingArgs.nonSerializableVararg: arguments must implement Serializable");
+		exception.expectMessage("InvocationException: After Context all parameter types in FailingArgs.nonSerializableVararg must implement Serializable");
 		done.get();
 	}
 
@@ -151,7 +151,7 @@ public class ProxyMethodUtilArgumentsTest {
 		FailingArgs s = Proxier.get(FailingArgs.class, done);
 		s.genericsNonSerializable(context, new ArrayList<>());
 		exception.expect(ExecutionException.class);
-		exception.expectMessage("Failed to invoke FailingArgs.genericsNonSerializable: arguments must implement Serializable");
+		exception.expectMessage("InvocationException: After Context all parameter types in FailingArgs.genericsNonSerializable must implement Serializable");
 		done.get();
 	}
 
@@ -161,7 +161,7 @@ public class ProxyMethodUtilArgumentsTest {
 		FailingArgs s = Proxier.get(FailingArgs.class, done);
 		s.genericsNonSerializableParam(context, new ArrayList<>());
 		exception.expect(ExecutionException.class);
-		exception.expectMessage("Failed to invoke FailingArgs.genericsNonSerializableParam: arguments must implement Serializable");
+		exception.expectMessage("InvocationException: After Context all parameter types in FailingArgs.genericsNonSerializableParam must implement Serializable");
 		done.get();
 	}
 
@@ -171,7 +171,7 @@ public class ProxyMethodUtilArgumentsTest {
 		FailingArgs s = Proxier.get(FailingArgs.class, done);
 		s.emptyName(context, "");
 		exception.expect(ExecutionException.class);
-		exception.expectMessage("Failed to invoke FailingArgs.emptyName: all arguments must have non-empty @Name annotation");
+		exception.expectMessage("InvocationException: Empty @Name annotation in FailingArgs.emptyName");
 		done.get();
 	}
 

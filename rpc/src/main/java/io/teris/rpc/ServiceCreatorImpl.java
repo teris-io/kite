@@ -15,9 +15,9 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
-
 import javax.annotation.Nonnull;
 
 import io.teris.rpc.internal.ProxyMethodUtil;
@@ -38,14 +38,14 @@ class ServiceCreatorImpl implements ServiceCreator {
 
 	@Nonnull
 	@Override
-	public <S> S newInstance(@Nonnull Class<S> serviceClass) throws InstantiationException {
+	public <S> S newInstance(@Nonnull Class<S> serviceClass) throws InvocationException {
 		try {
 			@SuppressWarnings("unchecked")
 			S res = (S) Proxy.newProxyInstance(getClass().getClassLoader(), new Class[]{serviceClass}, invocationHandler);
 			return res;
 		}
 		catch (RuntimeException ex) {
-			throw new InstantiationException(serviceClass, ex);
+			throw new InvocationException(String.format("Failed to create a proxy instance for server %s", serviceClass.getSimpleName()), ex);
 		}
 	}
 
@@ -133,105 +133,111 @@ class ServiceCreatorImpl implements ServiceCreator {
 			}
 			catch (ExecutionException ex) {
 				Throwable cause = ex.getCause();
-				if (cause instanceof RuntimeException) {
+				if (cause instanceof CompletionException && cause.getCause() != null) {
+					throw cause.getCause();
+				}
+				else if (cause instanceof RuntimeException) {
 					throw cause;
 				}
-				for (Class<?> declaredExceptionClass : method.getExceptionTypes()) {
-					if (declaredExceptionClass.isAssignableFrom(cause.getClass())) {
-						throw cause;
-					}
-				}
-				throw new InvocationException(method, cause);
+				String message = String.format("Unexpected exception when invoking invoke %s.%s",
+					method.getDeclaringClass().getSimpleName(), method.getName());
+				throw new InvocationException(message, cause);
 			}
 		}
 
 		private static class Typedef extends HashMap<String, Serializable> {}
 
 		private <RS extends Serializable> CompletableFuture<RS> callRemote(Method method, Object[] args) {
+			CompletableFuture<RS> result = new CompletableFuture<>();
+
+			Type type;
+			String routingKey;
+			Entry<Context, LinkedHashMap<String, Serializable>> parsedArgs;
 			try {
-				Type type = ProxyMethodUtil.returnType(method);
-				String routingKey = ProxyMethodUtil.route(method);
-				Entry<Context, LinkedHashMap<String, Serializable>> parsedArgs = ProxyMethodUtil.arguments(method, args);
-				Context context = parsedArgs.getKey();
-				LinkedHashMap<String, Serializable> payload = parsedArgs.getValue();
-
-				CompletableFuture<byte[]> serializationPromise;
-
-				if (payload != null) {
-					serializationPromise = serializer.serialize(payload);
-				}
-				else {
-					serializationPromise = CompletableFuture.completedFuture(null);
-				}
-				CompletableFuture<RS> result = new CompletableFuture<>();
-				serializationPromise.whenComplete((data, t1) -> {
-					if (t1 != null) {
-						result.completeExceptionally(t1);
-						return;
-					}
-					serviceInvoker.call(routingKey, context, data)
-						.whenComplete((entry, t2) -> {
-							if (t2 != null) {
-								result.completeExceptionally(t2);
-								return;
-							}
-							Context responseContext = entry.getKey();
-							if (responseContext != null) {
-								context.putAll(responseContext);
-							}
-							byte[] responseData = entry.getValue();
-							if (responseData == null) {
-								result.complete(null);
-								return;
-							}
-
-							Deserializer deserializer =
-								deserializerMap.getOrDefault(context.get(Context.CONTENT_TYPE_KEY), serializer.deserializer());
-							deserializer.<HashMap<String, Serializable>>deserialize(responseData, Typedef.class
-								.getGenericSuperclass())
-								.whenComplete((response, t3) -> {
-									if (t3 != null) {
-										result.completeExceptionally(t3);
-										return;
-									}
-									byte[] responseException = (byte[]) response.get(ResponseFields.EXCEPTION);
-									byte[] responsePayload = (byte[]) response.get(ResponseFields.PAYLOAD);
-									if (responseException != null) {
-										deserializer.deserialize(responseException, ExceptionDataHolder.class).
-											whenComplete((eh, t4) -> {
-												if (t4 != null) {
-													result.completeExceptionally(t4);
-												}
-												else {
-													result.completeExceptionally(eh.exception());
-												}
-											});
-									}
-									else if (responsePayload != null) {
-										deserializer.<RS>deserialize(responsePayload, type)
-											.whenComplete((rs, t5) -> {
-												if (t5 != null) {
-													result.completeExceptionally(t5);
-												}
-												else {
-													result.complete(rs);
-												}
-											});
-									}
-									else {
-										result.complete(null);
-									}
-								});
-						});
-				});
-
-				return result;
+				type = ProxyMethodUtil.returnType(method);
+				routingKey = ProxyMethodUtil.route(method);
+				parsedArgs = ProxyMethodUtil.arguments(method, args);
 			}
 			catch (RuntimeException ex) {
-				CompletableFuture<RS> res = new CompletableFuture<>();
-				res.completeExceptionally(new InvocationException(method, ex));
-				return res;
+				result.completeExceptionally(ex);
+				return result;
 			}
+
+
+			Context context = parsedArgs.getKey();
+			LinkedHashMap<String, Serializable> payload = parsedArgs.getValue();
+
+			CompletableFuture<byte[]> serializationPromise;
+			if (payload != null) {
+				serializationPromise = serializer.serialize(payload);
+			}
+			else {
+				serializationPromise = CompletableFuture.completedFuture(null);
+			}
+			// FIXME try thenCompose
+			serializationPromise.whenComplete((data, t1) -> {
+				if (t1 != null) {
+					t1 = t1 instanceof CompletionException && t1.getCause() != null ? t1.getCause() : t1;
+					result.completeExceptionally(t1);
+					return;
+				}
+				serviceInvoker.call(routingKey, context, data)
+					.whenComplete((entry, t2) -> {
+						if (t2 != null) {
+							result.completeExceptionally(t2);
+							return;
+						}
+						Context responseContext = entry.getKey();
+						if (responseContext != null) {
+							context.putAll(responseContext);
+						}
+						byte[] responseData = entry.getValue();
+						if (responseData == null) {
+							result.complete(null);
+							return;
+						}
+
+						Deserializer deserializer =
+							deserializerMap.getOrDefault(context.get(Context.CONTENT_TYPE_KEY), serializer.deserializer());
+						deserializer.<HashMap<String, Serializable>>deserialize(responseData, Typedef.class
+							.getGenericSuperclass())
+							.whenComplete((response, t3) -> {
+								if (t3 != null) {
+									result.completeExceptionally(t3);
+									return;
+								}
+								byte[] responseException = (byte[]) response.get(ResponseFields.EXCEPTION);
+								byte[] responsePayload = (byte[]) response.get(ResponseFields.PAYLOAD);
+								if (responseException != null) {
+									deserializer.deserialize(responseException, ExceptionDataHolder.class).
+										whenComplete((eh, t4) -> {
+											if (t4 != null) {
+												result.completeExceptionally(t4);
+											}
+											else {
+												result.completeExceptionally(eh.exception());
+											}
+										});
+								}
+								else if (responsePayload != null) {
+									deserializer.<RS>deserialize(responsePayload, type)
+										.whenComplete((rs, t5) -> {
+											if (t5 != null) {
+												result.completeExceptionally(t5);
+											}
+											else {
+												result.complete(rs);
+											}
+										});
+								}
+								else {
+									result.complete(null);
+								}
+							});
+					});
+			});
+
+			return result;
 		}
 	}
 }

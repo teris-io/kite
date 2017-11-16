@@ -4,43 +4,47 @@
 
 package io.teris.rpc;
 
-import java.lang.reflect.Method;
 import javax.annotation.Nonnull;
 
 
 /**
- * Thrown by the invocation layer in case of technical issues with the invocation of
- * a remote service call: declaration, serialization, transport, deserialization error
- * etc.
+ * Thrown by the invocation layer in response to an internal technical exception. This
+ * exception is safe for the remote transport as it does not preserve the instance
+ * reference of the original exception thrown.
  */
-public class InvocationException extends TechnicalException {
+public class InvocationException extends RuntimeException {
 
-	static final long serialVersionUID = 234908723405672L;
+	static final long serialVersionUID = 4563467345675L;
 
 	/**
-	 * Constructs a InvocationException composing a detail message from the method
-	 * class and name.
+	 * Constructs an InvocationException with the provided detail message.
+	 *
+	 * @param message the detailed exception message.
 	 */
-	public InvocationException(@Nonnull Method method) {
-		super(String.format("Failed to invoke %s.%s", method.getDeclaringClass().getSimpleName(),
-			method.getName()));
+	public InvocationException(@Nonnull String message) {
+		super(message);
 	}
 
 	/**
-	 * Constructs a InvocationException composing a detail message from the method
-	 * class and name and appending a user message at the end.
+	 * Constructs an InvocationException with the given detail message and cause.
+	 *
+	 * @param message the detailed exception message.
+	 * @param cause the exception cause.
 	 */
-	public InvocationException(@Nonnull Method method, @Nonnull String message) {
-		super(String.format("Failed to invoke %s.%s: %s", method.getDeclaringClass().getSimpleName(),
-			method.getName(), message));
+	public InvocationException(@Nonnull String message, @Nonnull Throwable cause) {
+		super(String.format("%s [caused by %s%s]", message, cause.getClass().getSimpleName(),
+			cause.getMessage() != null ? ": " + cause.getMessage() : ""));
+		setStackTrace(cause.getStackTrace());
 	}
 
 	/**
-	 * Constructs a InvocationException composing a detail message from the method
-	 * class and name and attaching the cause.
+	 * Constructs an instance dispatching from an instance of {@link ExceptionDataHolder}
+	 *
+	 * @param message the original exception message.
+	 * @param stackTrace the original stack trace.
 	 */
-	public InvocationException(@Nonnull Method method, @Nonnull Throwable cause) {
-		super(String.format("Failed to invoke %s.%s", method.getDeclaringClass().getSimpleName(),
-			method.getName()), cause);
+	InvocationException(@Nonnull String message, @Nonnull StackTraceElement... stackTrace) {
+		super(message);
+		setStackTrace(stackTrace);
 	}
 }

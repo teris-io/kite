@@ -40,8 +40,8 @@ subprojects {
 
 	sourceSets {
 		integration {
-			compileClasspath += sourceSets.test.compileClasspath + main.output + test.output
-			runtimeClasspath += sourceSets.test.runtimeClasspath + main.output + test.output
+			compileClasspath += sourceSets.test.compileClasspath + sourceSets.main.compileClasspath
+			runtimeClasspath += sourceSets.test.runtimeClasspath + sourceSets.main.runtimeClasspath
 		}
 	}
 

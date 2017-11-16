@@ -27,6 +27,8 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import io.teris.rpc.InvocationException;
+
 
 public class ProxyMethodUtilReturnTypeTest {
 
@@ -92,8 +94,8 @@ public class ProxyMethodUtilReturnTypeTest {
 		Object data = Void.class;
 
 		NonGenericsReturnValueService s = Proxier.get(NonGenericsReturnValueService.class, data);
-		exception.expect(RuntimeException.class);
-		exception.expectMessage("Failed to invoke NonGenericsReturnValueService.nonSerializable: return type must implement Serializable or be void/Void");
+		exception.expect(InvocationException.class);
+		exception.expectMessage("Return type of NonGenericsReturnValueService.nonSerializable must implement Serializable or be void/Void (or a CompletableFuture thereof)");
 		s.nonSerializable();
 	}
 
@@ -103,7 +105,7 @@ public class ProxyMethodUtilReturnTypeTest {
 
 		NonGenericsReturnValueService s = Proxier.get(NonGenericsReturnValueService.class, data);
 		exception.expect(ExecutionException.class);
-		exception.expectMessage("Failed to invoke NonGenericsReturnValueService.nonSerializableAsync: return type must implement Serializable or be void/Void");
+		exception.expectMessage("InvocationException: Return type of NonGenericsReturnValueService.nonSerializableAsync must implement Serializable or be void/Void (or a CompletableFuture thereof)");
 		s.nonSerializableAsync().get();
 	}
 
@@ -112,8 +114,8 @@ public class ProxyMethodUtilReturnTypeTest {
 		Object data = Void.class;
 
 		NonGenericsReturnValueService s = Proxier.get(NonGenericsReturnValueService.class, data);
-		exception.expect(RuntimeException.class);
-		exception.expectMessage("Failed to invoke NonGenericsReturnValueService.nonSerializableArray: return type must implement Serializable or be void/Void");
+		exception.expect(InvocationException.class);
+		exception.expectMessage("Return type of NonGenericsReturnValueService.nonSerializableArray must implement Serializable or be void/Void (or a CompletableFuture thereof)");
 		s.nonSerializableArray();
 	}
 
@@ -296,8 +298,8 @@ public class ProxyMethodUtilReturnTypeTest {
 		data.add(Integer.valueOf(36));
 
 		GenericsReturnValueService s = Proxier.get(GenericsReturnValueService.class, data);
-		exception.expect(RuntimeException.class);
-		exception.expectMessage("Failed to invoke GenericsReturnValueService.genericIface: return type must implement Serializable or be void/Void");
+		exception.expect(InvocationException.class);
+		exception.expectMessage("Return type of GenericsReturnValueService.genericIface must implement Serializable or be void/Void (or a CompletableFuture thereof)");
 		s.genericIface();
 	}
 
@@ -309,7 +311,7 @@ public class ProxyMethodUtilReturnTypeTest {
 
 		GenericsReturnValueService s = Proxier.get(GenericsReturnValueService.class, data);
 		exception.expect(ExecutionException.class);
-		exception.expectMessage("Failed to invoke GenericsReturnValueService.genericIfaceAsync: return type must implement Serializable or be void/Void");
+		exception.expectMessage("InvocationException: Return type of GenericsReturnValueService.genericIfaceAsync must implement Serializable or be void/Void (or a CompletableFuture thereof)");
 		s.genericIfaceAsync().get();
 	}
 
@@ -320,8 +322,8 @@ public class ProxyMethodUtilReturnTypeTest {
 		data.add(Integer.valueOf(36));
 
 		GenericsReturnValueService s = Proxier.get(GenericsReturnValueService.class, data);
-		exception.expect(RuntimeException.class);
-		exception.expectMessage("Failed to invoke GenericsReturnValueService.objectCollection: return type must implement Serializable or be void/Void");
+		exception.expect(InvocationException.class);
+		exception.expectMessage("Return type of GenericsReturnValueService.objectCollection must implement Serializable or be void/Void (or a CompletableFuture thereof)");
 		s.objectCollection();
 	}
 
@@ -333,7 +335,7 @@ public class ProxyMethodUtilReturnTypeTest {
 
 		GenericsReturnValueService s = Proxier.get(GenericsReturnValueService.class, data);
 		exception.expect(ExecutionException.class);
-		exception.expectMessage("Failed to invoke GenericsReturnValueService.objectCollectionAsync: return type must implement Serializable or be void/Void");
+		exception.expectMessage("InvocationException: Return type of GenericsReturnValueService.objectCollectionAsync must implement Serializable or be void/Void (or a CompletableFuture thereof)");
 		s.objectCollectionAsync().get();
 	}
 
@@ -344,8 +346,8 @@ public class ProxyMethodUtilReturnTypeTest {
 		data.add(Integer.valueOf(36));
 
 		GenericsReturnValueService s = Proxier.get(GenericsReturnValueService.class, data);
-		exception.expect(RuntimeException.class);
-		exception.expectMessage("Failed to invoke GenericsReturnValueService.wildcard: return type must contain no wildcards");
+		exception.expect(InvocationException.class);
+		exception.expectMessage("Return type of GenericsReturnValueService.wildcard must contain no wildcards");
 		s.wildcard();
 	}
 
@@ -357,7 +359,7 @@ public class ProxyMethodUtilReturnTypeTest {
 
 		GenericsReturnValueService s = Proxier.get(GenericsReturnValueService.class, data);
 		exception.expect(ExecutionException.class);
-		exception.expectMessage("Failed to invoke GenericsReturnValueService.wildcardAsync: return type must contain no wildcards");
+		exception.expectMessage("InvocationException: Return type of GenericsReturnValueService.wildcardAsync must contain no wildcards");
 		s.wildcardAsync().get();
 	}
 

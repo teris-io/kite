@@ -8,16 +8,20 @@ import static org.junit.Assert.assertEquals;
 
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import io.teris.rpc.BusinessException;
 import io.teris.rpc.Context;
 import io.teris.rpc.Name;
 import io.teris.rpc.Service;
@@ -25,6 +29,7 @@ import io.teris.rpc.ServiceCreator;
 import io.teris.rpc.ServiceDispatcher;
 import io.teris.rpc.serialization.json.JsonSerializer;
 import io.vertx.core.Vertx;
+import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerOptions;
@@ -96,16 +101,13 @@ public class VertxServiceInvokerTest {
 
 		HttpServerOptions httpServerOptions = new HttpServerOptions().setHost("0.0.0.0").setPort(port);
 
-		HttpClientOptions httpClientOptions = new HttpClientOptions().setDefaultHost("localhost").setDefaultPort(port);
 
 		Vertx vertx = Vertx.vertx();
 
-		VertxServiceInvoker invoker = VertxServiceInvoker.builder(vertx)
-			.httpClientOptions(httpClientOptions)
-			.build();
+		HttpClient httpClient = vertx.createHttpClient(new HttpClientOptions().setDefaultHost("localhost").setDefaultPort(port));
 
 		ServiceCreator creator = ServiceCreator.builder()
-			.serviceInvoker(invoker)
+			.serviceInvoker(VertxServiceInvoker.builder(httpClient).build())
 			.serializer(new JsonSerializer())
 			.build();
 
@@ -163,8 +165,8 @@ public class VertxServiceInvokerTest {
 	@Test
 	public void invoke_sync_exception_success() {
 		Context context = new Context();
-		exception.expect(RuntimeException.class);
-		exception.expectMessage("Failed to invoke AService.exceptionally [caused by InvocationTargetException]");
+		exception.expect(BusinessException.class);
+		exception.expectMessage("NumberFormatException: For input string: \"abc\"");
 		service.exceptionally(context);
 	}
 
@@ -185,7 +187,27 @@ public class VertxServiceInvokerTest {
 		Context context = new Context();
 		CompletableFuture<Double> promise = service.completingExceptionally(context);
 		exception.expect(ExecutionException.class);
-		exception.expectMessage("java.lang.NumberFormatException: For input string: \"abc\"");
+		exception.expectMessage("io.teris.rpc.BusinessException: NumberFormatException: For input string: \"abc\"");
 		promise.get();
+	}
+
+	@Ignore
+	@Test
+	public void invoke_sync_benchmark_async_success() throws Exception{
+		Context context = new Context();
+		List<CompletableFuture<Double>> promises = new ArrayList<>();
+		for (int i = 0; i < 20000; i++) {
+			promises.add(service.subtract(context, Double.valueOf(341.2), Double.valueOf(359.3)));
+		}
+		CompletableFuture.allOf(promises.toArray(new CompletableFuture[]{})).get();
+	}
+
+	@Ignore
+	@Test
+	public void invoke_sync_benchmark_sync_success() {
+		Context context = new Context();
+		for (int i = 0; i < 20000; i++) {
+			service.add(context, Double.valueOf(341.2), Double.valueOf(359.3));
+		}
 	}
 }

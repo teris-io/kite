@@ -34,7 +34,8 @@ public final class ProxyMethodUtil {
 		String methodName = methodName(method);
 		String res = sanitizeRoute(serviceRoute + "." + methodName);
 		if ("".equals(res)) {
-			throw new InvocationException(method, "empty route");
+			String message = String.format("Empty route for %s.%s", method.getDeclaringClass().getSimpleName(), method.getName());
+			throw new InvocationException(message);
 		}
 		return res;
 	}
@@ -44,7 +45,9 @@ public final class ProxyMethodUtil {
 
 		Service serviceAnnot = methodClass.getAnnotation(Service.class);
 		if (serviceAnnot == null) {
-			throw new InvocationException(method, String.format("missing @%s annotation", Service.class.getSimpleName()));
+			String message = String.format("Missing @%s annotation on %s", Service.class.getSimpleName(),
+				method.getDeclaringClass().getSimpleName());
+			throw new InvocationException(message);
 		}
 
 		String serviceRoute = methodClass.getCanonicalName();
@@ -92,29 +95,35 @@ public final class ProxyMethodUtil {
 	public static Entry<Context, LinkedHashMap<String, Serializable>> arguments(@Nonnull Method method, @Nullable Object[] args) throws InvocationException {
 		validateArgumentTypes(method);
 		if (args == null || args.length < 1 || args[0] == null) {
-			throw new InvocationException(method, String.format("first argument must be an instance of %s", Context.class.getSimpleName()));
+			String message = String.format("First argument to %s.%s must be a (non-null) instance of %s",
+				method.getDeclaringClass().getSimpleName(), method.getName(), Context.class.getSimpleName());
+			throw new InvocationException(message);
 		}
 		Context context = (Context) args[0];
 		LinkedHashMap<String, Serializable> payload = new LinkedHashMap<>();
 		for (int i = 1; i < method.getParameterCount(); i++) {
 			Name nameAnnot = method.getParameters()[i].getAnnotation(Name.class);
 			if (nameAnnot == null) {
-				throw new InvocationException(method, String.format("all arguments except for the first one must be annotated with @%s",
-					Name.class.getSimpleName()));
+				String message = String.format("After %s all parameters in %s.%s must be annotated with @%s",
+					Context.class.getSimpleName(), method.getDeclaringClass().getSimpleName(), method.getName(), Name.class.getSimpleName());
+				throw new InvocationException(message);
 			}
 			String name = nameAnnot.value();
 			if ("".equals(name.trim())) {
-				throw new InvocationException(method, String.format("all arguments must have non-empty @%s annotation",
-					Name.class.getSimpleName()));
+				String message = String.format("Empty @%s annotation in %s.%s",
+					Name.class.getSimpleName(), method.getDeclaringClass().getSimpleName(), method.getName());
+				throw new InvocationException(message);
 			}
 			payload.put(name, (Serializable) args[i]);
 		}
 		return new SimpleEntry<>(context, payload);
 	}
 
-	static void validateArgumentTypes(Method method) throws InvocationException {
+	public static void validateArgumentTypes(Method method) throws InvocationException {
 		if (method.getParameterCount() == 0 || !Context.class.isAssignableFrom(method.getParameters()[0].getType())) {
-			throw new InvocationException(method, String.format("first argument must be an instance of %s", Context.class.getSimpleName()));
+			String message = String.format("First parameters to %s.%s must be %s",
+				method.getDeclaringClass().getSimpleName(), method.getName(), Context.class.getSimpleName());
+			throw new InvocationException(message);
 		}
 		for (int i = 1; i < method.getParameterCount(); i++) {
 			Parameter param = method.getParameters()[i];
@@ -124,7 +133,9 @@ public final class ProxyMethodUtil {
 
 	private static void validateArgumentType(Method method, Type type) throws InvocationException {
 		if (type instanceof WildcardType) {
-			throw new InvocationException(method, "argument types must contain no wildcards");
+			String message = String.format("Parameter types in %s.%s must contain no wildcards",
+				method.getDeclaringClass().getSimpleName(), method.getName());
+			throw new InvocationException(message);
 		}
 		if (type instanceof Class) {
 			Class<?> clazz = (Class<?>) type;
@@ -132,7 +143,9 @@ public final class ProxyMethodUtil {
 				validateArgumentType(method, clazz.getComponentType());
 			}
 			else if (!Serializable.class.isAssignableFrom(clazz)) {
-				throw new InvocationException(method, "arguments must implement Serializable");
+				String message = String.format("After %s all parameter types in %s.%s must implement Serializable",
+					Context.class.getSimpleName(), method.getDeclaringClass().getSimpleName(), method.getName());
+				throw new InvocationException(message);
 			}
 		}
 		if (type instanceof ParameterizedType) {
@@ -156,7 +169,9 @@ public final class ProxyMethodUtil {
 
 	private static void validateReturnType(Method method, Type type) throws InvocationException {
 		if (type instanceof WildcardType) {
-			throw new InvocationException(method, "return type must contain no wildcards");
+			String message = String.format("Return type of %s.%s must contain no wildcards",
+				method.getDeclaringClass().getSimpleName(), method.getName());
+			throw new InvocationException(message);
 		}
 		if (type instanceof Class) {
 			Class<?> clazz = (Class<?>) type;
@@ -167,7 +182,9 @@ public final class ProxyMethodUtil {
 				boolean isVoid = void.class.isAssignableFrom(clazz) || Void.class.isAssignableFrom(clazz);
 				boolean isSerializable = Serializable.class.isAssignableFrom(clazz);
 				if (!isVoid && !isSerializable) {
-					throw new InvocationException(method, "return type must implement Serializable or be void/Void");
+					String message = String.format("Return type of %s.%s must implement Serializable or be void/Void (or a CompletableFuture thereof)",
+						method.getDeclaringClass().getSimpleName(), method.getName());
+					throw new InvocationException(message);
 				}
 			}
 		}
