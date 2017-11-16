@@ -15,8 +15,7 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.Future;
+import java.util.function.BiFunction;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -101,96 +100,83 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 		return Collections.unmodifiableSet(new TreeSet<>(endpoints.keySet()));
 	}
 
+
 	@Nonnull
 	@Override
 	public CompletableFuture<Entry<Context, byte[]>> call(@Nonnull String route, @Nonnull Context context, @Nullable byte[] incoming) {
+		CompletableFuture<Object> invocation = new CompletableFuture<>();
 		Entry<Object, Method> endpoint = endpoints.get(route);
-		if (endpoint == null) {
-			return complete(context, new TechnicalException(String.format("No route to %s", route)));
-		}
+		if (endpoint != null) {
+			Method method = endpoint.getValue();
+			Object service = endpoint.getKey();
 
-		Method method = endpoint.getValue();
-		Object service = endpoint.getKey();
-
-		ServiceArgDeserializer argDeserializer = new ServiceArgDeserializer();
-
-		Object[] callArgs;
-		try {
-			// FIXME supplyAsync
-			Deserializer deserializer = deserializerMap.getOrDefault(context.get(Context.CONTENT_TYPE_KEY), serializer.deserializer());
-			callArgs = argDeserializer.deserialize(deserializer, context, method, incoming);
-		}
-		catch (Exception ex) {
-			return complete(context, new InvocationException(method, ex));
-		}
-
-		Object callResult;
-		try {
-			// FIXME supplyAsync if result non-future
-			callResult = method.invoke(service, callArgs);
-		}
-		catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException ex) {
-			return complete(context, new InvocationException(method, ex));
-		}
-		catch (Exception ex) {
-			return complete(context, new BusinessException(ex));
-		}
-
-		if (callResult instanceof Serializable) {
-			return complete(context, (Serializable) callResult);
-		}
-		else if (callResult instanceof CompletableFuture) {
-			return complete(context, (CompletableFuture<?>) callResult);
-		}
-		else if (callResult instanceof Future) {
-			return complete(context, (Future) callResult);
-		}
-		else if (callResult == null && !Future.class.isAssignableFrom(method.getReturnType())) {
-			return complete(context);
-		}
-		else if (void.class.isAssignableFrom(method.getReturnType()) || Void.class.isAssignableFrom(method.getReturnType())) {
-			return complete(context);
-		}
-		else if (callResult == null) {
-			return complete(context, new InvocationException(method, "received null for a future"));
+			// FIXME make serializer async
+			CompletableFuture
+				.supplyAsync(() -> {
+					Deserializer deserializer =
+						deserializerMap.getOrDefault(context.get(Context.CONTENT_TYPE_KEY), serializer.deserializer());
+					return new ServiceArgDeserializer().deserialize(deserializer, context, method, incoming);
+				})
+				.thenAccept(args -> {
+					if (CompletableFuture.class.isAssignableFrom(method.getReturnType())) {
+						try {
+							((CompletableFuture<?>) method.invoke(service, args)).whenComplete((obj, t) -> {
+								if (t != null) {
+									invocation.completeExceptionally(t);
+								}
+								else {
+									invocation.complete(obj);
+								}
+							});
+						}
+						catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException ex) {
+							invocation.completeExceptionally(new InvocationException(method, ex));
+						}
+						catch (Exception ex) {
+							invocation.completeExceptionally(new BusinessException(ex));
+						}
+					}
+					else {
+						CompletableFuture.runAsync(() -> {
+							try {
+								invocation.complete(method.invoke(service, args));
+							}
+							catch (IllegalAccessException | IllegalArgumentException | InvocationTargetException ex) {
+								invocation.completeExceptionally(new InvocationException(method, ex));
+							}
+							catch (Exception ex) {
+								invocation.completeExceptionally(new BusinessException(ex));
+							}
+						});
+					}
+				});
 		}
 		else {
-			return complete(context, new InvocationException(method, "return type is neither Serializable nor void"));
+			invocation.completeExceptionally(new TechnicalException(String.format("No route to %s", route)));
 		}
+		return invocation.handle(new Completer(context, serializer));
 	}
 
+	static class Completer implements BiFunction<Object, Throwable, Entry<Context, byte[]>> {
 
-	public CompletableFuture<Entry<Context, byte[]>> complete(Context context) {
-		return complete(context, (Serializable) null);
-	}
+		private final Context context;
 
-	public CompletableFuture<Entry<Context, byte[]>> complete(Context context, Serializable returnValue) {
-		return CompletableFuture.supplyAsync(() -> {
-			HashMap<String, Serializable> res = new HashMap<>();
-			res.put(ResponseFields.PAYLOAD, returnValue);
-			// throw here is the only reason for the future to complete exceptionally
-			return new SimpleEntry<>(context, serializer.serialize(res));
-		});
-	}
+		private final Serializer serializer;
 
-	public CompletableFuture<Entry<Context, byte[]>> complete(Context context, Throwable t) {
-		return CompletableFuture.supplyAsync(() -> {
-			HashMap<String, Serializable> res = new HashMap<>();
-			res.put(ResponseFields.EXCEPTION, t);
-			// throw here is the only reason for the future to complete exceptionally
-			return new SimpleEntry<>(context, serializer.serialize(res));
-		});
-	}
+		Completer(Context context, Serializer serializer) {
+			this.context = context;
+			this.serializer = serializer;
+		}
 
-	public CompletableFuture<Entry<Context, byte[]>> complete(Context context, CompletableFuture<?> returnValue) {
-		CompletableFuture<Entry<Context, byte[]>> promise = new CompletableFuture<>();
-		returnValue.handleAsync((obj, t) -> {
+		@Override
+		public Entry<Context, byte[]> apply(Object obj, Throwable t) {
 			HashMap<String, Serializable> res = new HashMap<>();
 			if (t != null) {
-				res.put(ResponseFields.EXCEPTION, new BusinessException(t));
+				res.put(ResponseFields.EXCEPTION, new ExceptionDataHolder(t));
 				res.put(ResponseFields.ERROR_MESSAGE, t.getMessage() != null ? t.getMessage() : t.toString());
 			}
-			else if (obj == null || void.class.isAssignableFrom(obj.getClass()) || Void.class.isAssignableFrom(obj.getClass())) {
+			else if (obj == null || void.class.isAssignableFrom(obj.getClass())
+				|| Void.class.isAssignableFrom(obj.getClass())) {
 				res.put(ResponseFields.PAYLOAD, null);
 			}
 			else if (obj instanceof Serializable) {
@@ -198,49 +184,13 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 			}
 			else {
 				String message = "Returned value is neither Serializable nor void";
-				res.put(ResponseFields.EXCEPTION, new TechnicalException(message));
+				res.put(ResponseFields.EXCEPTION, new ExceptionDataHolder(new TechnicalException(message)));
 				res.put(ResponseFields.ERROR_MESSAGE, message);
-			}
-			try {
-				// throw here is the only reason for the future to complete exceptionally
-				promise.complete(new SimpleEntry<>(context, serializer.serialize(res)));
-			}
-			catch (Exception ex) {
-				promise.completeExceptionally(ex);
-			}
-			return null;
-		});
-		return promise;
-	}
-
-	public CompletableFuture<Entry<Context, byte[]>> complete(Context context, Future returnValue) {
-		return CompletableFuture.supplyAsync(() -> {
-			HashMap<String, Serializable> res = new HashMap<>();
-			try {
-				Object obj = returnValue.get();
-				if (obj == null || void.class.isAssignableFrom(obj.getClass()) || Void.class.isAssignableFrom(obj.getClass())) {
-					res.put(ResponseFields.PAYLOAD, null);
-				}
-				else if (obj instanceof Serializable) {
-					res.put(ResponseFields.PAYLOAD, (Serializable) obj);
-				}
-				else {
-					String message = "Returned value is neither Serializable nor void";
-					res.put(ResponseFields.EXCEPTION, new TechnicalException(message));
-					res.put(ResponseFields.ERROR_MESSAGE, message);
-				}
-			}
-			catch (ExecutionException ex) {
-				res.put(ResponseFields.EXCEPTION, new BusinessException(ex.getCause()));
-				res.put(ResponseFields.ERROR_MESSAGE, ex.getCause().getMessage() != null ? ex.getCause().getMessage() : ex.getCause().toString());
-			}
-			catch (InterruptedException ex) {
-				res.put(ResponseFields.EXCEPTION, new BusinessException(ex));
-				res.put(ResponseFields.ERROR_MESSAGE, ex.getMessage() != null ? ex.getMessage() : ex.toString());
 			}
 			// throw here is the only reason for the future to complete exceptionally
 			return new SimpleEntry<>(context, serializer.serialize(res));
-		});
+		}
 	}
+
 
 }

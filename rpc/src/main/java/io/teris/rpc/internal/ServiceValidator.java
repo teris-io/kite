@@ -42,7 +42,7 @@ public final class ServiceValidator {
 				ProxyMethodUtil.validateArgumentTypes(method);
 				ProxyMethodUtil.returnType(method);
 			}
-			catch (RuntimeException | ServiceException ex) {
+			catch (RuntimeException ex) {
 				throw new InstantiationException(serviceClass, ex);
 			}
 			foundMethodNames.add(method.getName());

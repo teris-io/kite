@@ -5,12 +5,18 @@
 package io.teris.rpc;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 
 /**
  * Defines the base class for all service related exceptions.
  */
-public class ServiceException extends Exception {
+public class ServiceException extends RuntimeException {
+
+	public ServiceException(@Nullable String message, @Nonnull StackTraceElement... stackTrace) {
+		super(message);
+		setStackTrace(stackTrace);
+	}
 
 	/**
 	 * Constructs a ServiceException with the specified detail message.

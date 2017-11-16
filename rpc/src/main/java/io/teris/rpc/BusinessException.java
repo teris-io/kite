@@ -5,6 +5,7 @@
 package io.teris.rpc;
 
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 
 /**
@@ -15,18 +16,8 @@ public class BusinessException extends ServiceException {
 
 	static final long serialVersionUID = 23489765234056L;
 
-	/**
-	 * Constructs a BusinessException with the provided detail message.
-	 */
-	public BusinessException(@Nonnull String message) {
-		super(message);
-	}
-
-	/**
-	 * Constructs a BusinessException with the provided detail message and the cause.
-	 */
-	public BusinessException(@Nonnull String message, @Nonnull Throwable cause) {
-		super(message, cause);
+	public BusinessException(@Nullable String message, @Nonnull StackTraceElement... stackTrace) {
+		super(message, stackTrace);
 	}
 
 	/**

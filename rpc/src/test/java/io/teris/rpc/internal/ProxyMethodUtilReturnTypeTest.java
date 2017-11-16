@@ -27,8 +27,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import io.teris.rpc.ServiceException;
-
 
 public class ProxyMethodUtilReturnTypeTest {
 
@@ -399,9 +397,6 @@ public class ProxyMethodUtilReturnTypeTest {
 			}
 			catch (RuntimeException ex) {
 				res.completeExceptionally(ex);
-			}
-			catch (ServiceException ex) {
-				res.completeExceptionally(new RuntimeException(ex));
 			}
 			return res;
 		}

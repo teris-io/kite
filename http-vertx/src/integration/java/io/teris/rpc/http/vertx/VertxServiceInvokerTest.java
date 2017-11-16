@@ -184,7 +184,7 @@ public class VertxServiceInvokerTest {
 		Context context = new Context();
 		CompletableFuture<Double> promise = service.completingExceptionally(context);
 		exception.expect(ExecutionException.class);
-		exception.expectMessage("CompletionException: java.lang.NumberFormatException: For input string: \"abc\"");
+		exception.expectMessage("Unexpected exception [caused by CompletionException: java.lang.NumberFormatException: For input string: \"abc\"]");
 		promise.get();
 	}
 }

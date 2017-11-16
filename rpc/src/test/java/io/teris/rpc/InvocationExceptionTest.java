@@ -7,17 +7,19 @@
  */
 package io.teris.rpc;
 
-import static org.junit.Assert.assertEquals;
-
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
-import java.lang.reflect.UndeclaredThrowableException;
 
+import org.junit.Rule;
 import org.junit.Test;
+import org.junit.rules.ExpectedException;
 
 
 public class InvocationExceptionTest {
+
+	@Rule
+	public ExpectedException exception = ExpectedException.none();
 
 	interface AService {
 
@@ -29,28 +31,18 @@ public class InvocationExceptionTest {
 
 	@Test
 	public void thrown_correctMessage() {
-		try {
-			AService service = Proxier.get(AService.class);
-			service.thrown();
-			throw new AssertionError("unreachable code");
-		}
-		catch (UndeclaredThrowableException actual) {
-			InvocationException ex = (InvocationException) actual.getCause();
-			assertEquals("Failed to invoke AService.thrown", ex.getMessage());
-		}
+		AService service = Proxier.get(AService.class);
+		exception.expect(InvocationException.class);
+		exception.expectMessage("Failed to invoke AService.thrown");
+		service.thrown();
 	}
 
 	@Test
 	public void caused_correctMessage() {
-		try {
-			AService service = Proxier.get(AService.class);
-			service.caused();
-			throw new AssertionError("unreachable code");
-		}
-		catch (UndeclaredThrowableException actual) {
-			InvocationException ex = (InvocationException) actual.getCause();
-			assertEquals("Failed to invoke AService.caused [caused by NumberFormatException: For input string: \"bad\"]", ex.getMessage());
-		}
+		AService service = Proxier.get(AService.class);
+		exception.expect(InvocationException.class);
+		exception.expectMessage("Failed to invoke AService.caused [caused by NumberFormatException: For input string: \"bad\"]");
+		service.caused();
 	}
 
 	private static class Proxier implements InvocationHandler {

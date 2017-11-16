@@ -172,7 +172,7 @@ class ServiceCreatorImpl implements ServiceCreator {
 
 					byte[] responseException = (byte[]) response.get(ResponseFields.EXCEPTION);
 					if (responseException != null) {
-						throw deserializer.deserialize(responseException, RuntimeException.class);
+						throw deserializer.deserialize(responseException, ExceptionDataHolder.class).exception();
 					}
 
 					byte[] responsePayload = (byte[]) response.get(ResponseFields.PAYLOAD);
@@ -182,11 +182,6 @@ class ServiceCreatorImpl implements ServiceCreator {
 			catch (RuntimeException ex) {
 				CompletableFuture<RS> res = new CompletableFuture<>();
 				res.completeExceptionally(new InvocationException(method, ex));
-				return res;
-			}
-			catch (ServiceException ex) {
-				CompletableFuture<RS> res = new CompletableFuture<>();
-				res.completeExceptionally(ex);
 				return res;
 			}
 		}
