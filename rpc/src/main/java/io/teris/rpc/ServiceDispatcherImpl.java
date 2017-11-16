@@ -15,7 +15,6 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
-import java.util.function.BiFunction;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -110,13 +109,9 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 			Method method = endpoint.getValue();
 			Object service = endpoint.getKey();
 
-			// FIXME make serializer async
-			CompletableFuture
-				.supplyAsync(() -> {
-					Deserializer deserializer =
-						deserializerMap.getOrDefault(context.get(Context.CONTENT_TYPE_KEY), serializer.deserializer());
-					return new ServiceArgDeserializer().deserialize(deserializer, context, method, incoming);
-				})
+			Deserializer deserializer =
+				deserializerMap.getOrDefault(context.get(Context.CONTENT_TYPE_KEY), serializer.deserializer());
+			new ServiceArgDeserializer().deserialize(deserializer, context, method, incoming)
 				.thenAccept(args -> {
 					if (CompletableFuture.class.isAssignableFrom(method.getReturnType())) {
 						try {
@@ -154,43 +149,43 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 		else {
 			invocation.completeExceptionally(new TechnicalException(String.format("No route to %s", route)));
 		}
-		return invocation.handle(new Completer(context, serializer));
+		CompletableFuture<Entry<Context, byte[]>> result = new CompletableFuture<>();
+		invocation
+			.handle((obj, t) -> {
+				HashMap<String, Serializable> res = new HashMap<>();
+				if (t != null) {
+					res.put(ResponseFields.EXCEPTION, new ExceptionDataHolder(t));
+					res.put(ResponseFields.ERROR_MESSAGE, t.getMessage() != null ? t.getMessage() : t.toString());
+				}
+				else if (obj == null || void.class.isAssignableFrom(obj.getClass())
+					|| Void.class.isAssignableFrom(obj.getClass())) {
+					res.put(ResponseFields.PAYLOAD, null);
+				}
+				else if (obj instanceof Serializable) {
+					res.put(ResponseFields.PAYLOAD, (Serializable) obj);
+				}
+				else {
+					String message = "Returned value is neither Serializable nor void";
+					res.put(ResponseFields.EXCEPTION, new ExceptionDataHolder(new TechnicalException(message)));
+					res.put(ResponseFields.ERROR_MESSAGE, message);
+				}
+				return res;
+			})
+			.whenComplete((ser, t) -> {
+				if (t != null) {
+					result.completeExceptionally(t);
+				}
+				else {
+					serializer.serialize(ser).whenComplete((bt, tn) -> {
+						if (tn != null) {
+							result.completeExceptionally(tn);
+						}
+						else {
+							result.complete(new SimpleEntry<>(context, bt));
+						}
+					});
+				}
+			});
+		return result;
 	}
-
-	static class Completer implements BiFunction<Object, Throwable, Entry<Context, byte[]>> {
-
-		private final Context context;
-
-		private final Serializer serializer;
-
-		Completer(Context context, Serializer serializer) {
-			this.context = context;
-			this.serializer = serializer;
-		}
-
-		@Override
-		public Entry<Context, byte[]> apply(Object obj, Throwable t) {
-			HashMap<String, Serializable> res = new HashMap<>();
-			if (t != null) {
-				res.put(ResponseFields.EXCEPTION, new ExceptionDataHolder(t));
-				res.put(ResponseFields.ERROR_MESSAGE, t.getMessage() != null ? t.getMessage() : t.toString());
-			}
-			else if (obj == null || void.class.isAssignableFrom(obj.getClass())
-				|| Void.class.isAssignableFrom(obj.getClass())) {
-				res.put(ResponseFields.PAYLOAD, null);
-			}
-			else if (obj instanceof Serializable) {
-				res.put(ResponseFields.PAYLOAD, (Serializable) obj);
-			}
-			else {
-				String message = "Returned value is neither Serializable nor void";
-				res.put(ResponseFields.EXCEPTION, new ExceptionDataHolder(new TechnicalException(message)));
-				res.put(ResponseFields.ERROR_MESSAGE, message);
-			}
-			// throw here is the only reason for the future to complete exceptionally
-			return new SimpleEntry<>(context, serializer.serialize(res));
-		}
-	}
-
-
 }

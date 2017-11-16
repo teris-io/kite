@@ -35,7 +35,6 @@ public class InvocationException extends TechnicalException {
 			method.getName(), message));
 	}
 
-
 	/**
 	 * Constructs a InvocationException composing a detail message from the method
 	 * class and name and attaching the cause.

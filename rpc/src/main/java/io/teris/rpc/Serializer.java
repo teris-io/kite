@@ -8,6 +8,7 @@
 package io.teris.rpc;
 
 import java.io.Serializable;
+import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 
 
@@ -17,12 +18,12 @@ import javax.annotation.Nonnull;
 public interface Serializer {
 
 	/**
-	 * Serializes the value into a byte array with the predefined content type.
-	 *
-	 * @throws IllegalArgumentException In case if an argument cannot be serialized.
+	 * Asynchronously serializes the value into a byte array of the given content type.
+	 * Completes exceptionally with an IllegalArgumentException when the argument cannot be
+	 * serialized.
 	 */
 	@Nonnull
-	<CT extends Serializable> byte[] serialize(@Nonnull CT value);
+	<CT extends Serializable> CompletableFuture<byte[]> serialize(@Nonnull CT value);
 
 	/**
 	 * @return The content type expected and provided by the serializer.

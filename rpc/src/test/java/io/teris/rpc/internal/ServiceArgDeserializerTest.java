@@ -14,6 +14,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.concurrent.ExecutionException;
 
 import org.junit.BeforeClass;
 import org.junit.Rule;
@@ -22,7 +23,6 @@ import org.junit.rules.ExpectedException;
 
 import io.teris.rpc.Context;
 import io.teris.rpc.Deserializer;
-import io.teris.rpc.InvocationException;
 import io.teris.rpc.Name;
 import io.teris.rpc.Service;
 import io.teris.rpc.testfixture.JsonSerializer;
@@ -65,7 +65,7 @@ public class ServiceArgDeserializerTest {
 		args.put("keys", keys);
 		args.put("data", data);
 
-		Object[] actual = new ServiceArgDeserializer().deserialize(deserializer, context, method, serializer.serialize(args));
+		Object[] actual = new ServiceArgDeserializer().deserialize(deserializer, context, method, serializer.serialize(args).get()).get();
 
 		assertEquals(3, actual.length);
 		assertSame(context, actual[0]);
@@ -75,7 +75,7 @@ public class ServiceArgDeserializerTest {
 
 	@Test
 	public void deserialize_emptyData_success_nulls() throws Exception {
-		Object[] actual = new ServiceArgDeserializer().deserialize(deserializer, context, method, new byte[]{});
+		Object[] actual = new ServiceArgDeserializer().deserialize(deserializer, context, method, new byte[]{}).get();
 
 		assertEquals(3, actual.length);
 		assertSame(context, actual[0]);
@@ -85,7 +85,7 @@ public class ServiceArgDeserializerTest {
 
 	@Test
 	public void deserialize_nullData_success_nulls() throws Exception {
-		Object[] actual = new ServiceArgDeserializer().deserialize(deserializer, context, method, null);
+		Object[] actual = new ServiceArgDeserializer().deserialize(deserializer, context, method, null).get();
 
 		assertEquals(3, actual.length);
 		assertSame(context, actual[0]);
@@ -96,7 +96,7 @@ public class ServiceArgDeserializerTest {
 	@Test
 	public void deserialize_noParams_emptyData_success_contextOnly() throws Exception {
 		Method emptyMethod = AService.class.getMethod("empty", Context.class);
-		Object[] actual = new ServiceArgDeserializer().deserialize(deserializer, context, emptyMethod, null);
+		Object[] actual = new ServiceArgDeserializer().deserialize(deserializer, context, emptyMethod, null).get();
 
 		assertEquals(1, actual.length);
 		assertSame(context, actual[0]);
@@ -111,7 +111,7 @@ public class ServiceArgDeserializerTest {
 		LinkedHashMap<String, Serializable> args = new LinkedHashMap<>();
 		args.put("data", data);
 
-		Object[] actual = new ServiceArgDeserializer().deserialize(deserializer, context, method, serializer.serialize(args));
+		Object[] actual = new ServiceArgDeserializer().deserialize(deserializer, context, method, serializer.serialize(args).get()).get();
 
 		assertEquals(3, actual.length);
 		assertSame(context, actual[0]);
@@ -127,8 +127,8 @@ public class ServiceArgDeserializerTest {
 		args.put("keys", keys);
 
 		Method emptyMethod = AService.class.getMethod("empty", Context.class);
-		exception.expect(InvocationException.class);
-		exception.expectMessage("");
-		new ServiceArgDeserializer().deserialize(deserializer, context, emptyMethod, serializer.serialize(args));
+		exception.expect(ExecutionException.class);
+		exception.expectMessage("too many arguments");
+		new ServiceArgDeserializer().deserialize(deserializer, context, emptyMethod, serializer.serialize(args).get()).get();
 	}
 }

@@ -16,11 +16,6 @@ public class TechnicalException extends ServiceException {
 
 	static final long serialVersionUID = 4563467345675L;
 
-	public TechnicalException(@Nullable String message, @Nonnull StackTraceElement... stackTrace) {
-		super(message, stackTrace);
-	}
-
-
 	/**
 	 * Constructs a TechnicalException with the provided detail message.
 	 */
@@ -33,5 +28,12 @@ public class TechnicalException extends ServiceException {
 	 */
 	public TechnicalException(@Nonnull String message, @Nonnull Throwable cause) {
 		super(message, cause);
+	}
+
+	/**
+	 * Constructs an instance dispatching from an instance of {@link ExceptionDataHolder}
+	 */
+	TechnicalException(@Nullable String message, @Nonnull StackTraceElement... stackTrace) {
+		super(message, stackTrace);
 	}
 }

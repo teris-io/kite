@@ -14,7 +14,8 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.Set;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -56,34 +57,34 @@ public class JsonSerializerTest {
 	}
 
 	@Test
-	public void missingValues_ignoredInDeserialize() {
-		MissingVals res = serializer.deserializer().deserialize("{}".getBytes(), MissingVals.class);
+	public void missingValues_ignoredInDeserialize() throws Exception {
+		MissingVals res = serializer.deserializer().deserialize("{}".getBytes(), MissingVals.class).get();
 		assertNull(res.name);
 	}
 
 	@Test
-	public void missingList_deserializedAsNull() {
-		WithArray res = serializer.deserializer().deserialize("{}".getBytes(), WithArray.class);
+	public void missingList_deserializedAsNull() throws Exception {
+		WithArray res = serializer.deserializer().deserialize("{}".getBytes(), WithArray.class).get();
 		assertNull(res.values);
 	}
 
 	@Test
-	public void emptyArray_deserializedEmpty() {
-		WithArray res = serializer.deserializer().deserialize("{\"values\": []}".getBytes(), WithArray.class);
+	public void emptyArray_deserializedEmpty() throws Exception {
+		WithArray res = serializer.deserializer().deserialize("{\"values\": []}".getBytes(), WithArray.class).get();
 		assertEquals(Collections.emptyList(), res.values);
 	}
 
 	@Test
-	public void emptyArray_droppedInSerialization() {
+	public void emptyArray_droppedInSerialization() throws Exception {
 		WithArray res = new WithArray();
 		res.values = new ArrayList<>();
-		assertEquals("{}", new String(serializer.serialize(res)));
+		assertEquals("{}", new String(serializer.serialize(res).get()));
 	}
 
 	@Test
-	public void missingValues_droppedInSerialization() {
+	public void missingValues_droppedInSerialization() throws Exception {
 		MissingVals res = new MissingVals();
-		assertEquals("{}", new String(serializer.serialize(res)));
+		assertEquals("{}", new String(serializer.serialize(res).get()));
 	}
 
 	static class WithLocalDateTime implements Serializable {
@@ -91,21 +92,21 @@ public class JsonSerializerTest {
 	}
 
 	@Test
-	public void serialize_LocalDateTime_ok() {
+	public void serialize_LocalDateTime_ok() throws Exception {
 		WithLocalDateTime underTest  = new WithLocalDateTime();
 		underTest.field = LocalDateTime.of(2016, 2, 29, 12, 34, 56, 234234);
-		assertEquals("{\"field\":\"2016-02-29T12:34:56.000234234\"}", new String(serializer.serialize(underTest)));
+		assertEquals("{\"field\":\"2016-02-29T12:34:56.000234234\"}", new String(serializer.serialize(underTest).get()));
 	}
 
 	@Test
-	public void deserialize_LocalDateTime_ok() {
-		WithLocalDateTime actual = serializer.deserializer().deserialize("{\"field\":\"2016-02-29T12:34:56.000234234\"}".getBytes(), WithLocalDateTime.class);
+	public void deserialize_LocalDateTime_ok() throws Exception {
+		WithLocalDateTime actual = serializer.deserializer().deserialize("{\"field\":\"2016-02-29T12:34:56.000234234\"}".getBytes(), WithLocalDateTime.class).get();
 		assertEquals(LocalDateTime.of(2016, 2, 29, 12, 34, 56, 234234), actual.field);
 	}
 
 	@Test
-	public void deserialize_LocalDateTimeShortFormat_ok() {
-		WithLocalDateTime actual = serializer.deserializer().deserialize("{\"field\":\"2016-02-29T12:34:56\"}".getBytes(), WithLocalDateTime.class);
+	public void deserialize_LocalDateTimeShortFormat_ok() throws Exception {
+		WithLocalDateTime actual = serializer.deserializer().deserialize("{\"field\":\"2016-02-29T12:34:56\"}".getBytes(), WithLocalDateTime.class).get();
 		assertEquals(LocalDateTime.of(2016, 2, 29, 12, 34, 56, 0), actual.field);
 	}
 
@@ -114,16 +115,16 @@ public class JsonSerializerTest {
 	}
 
 	@Test
-	public void deserialize_zonedDateTime_okWithTimeZone() {
-		WithZonedDateTime actual = serializer.deserializer().deserialize("{\"field\":\"2016-02-29T12:34:56Z\"}".getBytes(), WithZonedDateTime.class);
+	public void deserialize_zonedDateTime_okWithTimeZone() throws Exception {
+		WithZonedDateTime actual = serializer.deserializer().deserialize("{\"field\":\"2016-02-29T12:34:56Z\"}".getBytes(), WithZonedDateTime.class).get();
 		assertEquals(ZonedDateTime.of(LocalDateTime.of(2016, 2, 29, 12, 34, 56, 0), ZoneId.of("UTC")), actual.field);
 	}
 
 	@Test
-	public void deserialize_zonedDateTime_throwsWithoutTimeZone() {
-		exception.expect(RuntimeException.class);
+	public void deserialize_zonedDateTime_throwsWithoutTimeZone() throws Exception {
+		exception.expect(ExecutionException.class);
 		exception.expectMessage("Text '2016-02-29T12:34:56' could not be parsed at index 19");
-		serializer.deserializer().deserialize("{\"field\":\"2016-02-29T12:34:56\"}".getBytes(), WithZonedDateTime.class);
+		serializer.deserializer().deserialize("{\"field\":\"2016-02-29T12:34:56\"}".getBytes(), WithZonedDateTime.class).get();
 	}
 
 	private static class TypedefOuter extends HashMap<String, Serializable> {}
@@ -131,7 +132,7 @@ public class JsonSerializerTest {
 	private static class TypedefInner extends HashSet<LocalDateTime> {}
 
 	@Test
-	public void deserialize_Serializable_asByteArrray() {
+	public void deserialize_Serializable_asByteArrray() throws Exception {
 		HashMap<String, Serializable> data = new HashMap<>();
 
 		HashSet<LocalDateTime> dates = new HashSet<>();
@@ -140,10 +141,10 @@ public class JsonSerializerTest {
 		LocalDateTime date2 = LocalDateTime.of(2016, 2, 28, 12, 34, 56);
 		dates.add(date2);
 		data.put("dates", dates);
-		byte[] payload = serializer.serialize(data);
+		byte[] payload = serializer.serialize(data).get();
 
-		HashMap<String, Serializable> actual = serializer.deserializer().deserialize(payload, TypedefOuter.class.getGenericSuperclass());
-		Set<LocalDateTime> actualDates = serializer.deserializer().deserialize((byte[]) actual.get("dates"), TypedefInner.class.getGenericSuperclass());
-		assertEquals(dates, actualDates);
+		CompletableFuture<HashMap<String, Serializable>> actual = serializer.deserializer().deserialize(payload, TypedefOuter.class.getGenericSuperclass());
+		CompletableFuture<HashSet<LocalDateTime>> actualDates = serializer.deserializer().deserialize((byte[]) actual.get().get("dates"), TypedefInner.class.getGenericSuperclass());
+		assertEquals(dates, actualDates.get());
 	}
 }

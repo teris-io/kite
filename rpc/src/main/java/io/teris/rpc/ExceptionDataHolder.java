@@ -20,7 +20,7 @@ public class ExceptionDataHolder implements Serializable {
 	}
 
 	public ExceptionDataHolder(Throwable t) {
-		this(new TechnicalException("Unexpected exception", t));
+		this(new ServiceException(t));
 	}
 
 	public String message = null;

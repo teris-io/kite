@@ -5,6 +5,7 @@
 package io.teris.rpc.serialization.json;
 
 import java.io.Serializable;
+import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -31,13 +32,15 @@ public class JsonSerializer extends JsonSerializerBase implements Serializer {
 
 	@Nonnull
 	@Override
-	public <V extends Serializable> byte[] serialize(@Nonnull V value) {
-		try {
-			return mapper.writeValueAsBytes(value);
-		}
-		catch (JsonProcessingException ex) {
-			throw new IllegalArgumentException(ex);
-		}
+	public <V extends Serializable> CompletableFuture<byte[]> serialize(@Nonnull V value) {
+		return CompletableFuture.supplyAsync(() -> {
+			try {
+				return mapper.writeValueAsBytes(value);
+			}
+			catch (JsonProcessingException ex) {
+				throw new IllegalArgumentException(ex);
+			}
+		});
 	}
 
 	@Nonnull

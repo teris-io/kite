@@ -4,5 +4,4 @@
 
 include(":rpc")
 include(":serialization-json")
-include(":serialization-xml")
 include(":http-vertx")

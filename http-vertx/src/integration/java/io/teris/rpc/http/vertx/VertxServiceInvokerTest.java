@@ -155,7 +155,8 @@ public class VertxServiceInvokerTest {
 	public void invoke_async_roundtrip_success() throws Exception {
 		Context context = new Context();
 		CompletableFuture<Double> promise = service.subtract(context, Double.valueOf(359.3), Double.valueOf(341.2));
-		assertEquals(18.1, promise.get().doubleValue(), 0.001);
+		double actual = promise.get().doubleValue();
+		assertEquals(18.1, actual, 0.001);
 		assertEquals("subtract", context.get("remote-invocation"));
 	}
 
@@ -184,7 +185,7 @@ public class VertxServiceInvokerTest {
 		Context context = new Context();
 		CompletableFuture<Double> promise = service.completingExceptionally(context);
 		exception.expect(ExecutionException.class);
-		exception.expectMessage("Unexpected exception [caused by CompletionException: java.lang.NumberFormatException: For input string: \"abc\"]");
+		exception.expectMessage("java.lang.NumberFormatException: For input string: \"abc\"");
 		promise.get();
 	}
 }

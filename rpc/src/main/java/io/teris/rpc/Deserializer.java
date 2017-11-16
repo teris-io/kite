@@ -9,6 +9,7 @@ package io.teris.rpc;
 
 import java.io.Serializable;
 import java.lang.reflect.Type;
+import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 
 
@@ -18,14 +19,14 @@ import javax.annotation.Nonnull;
 public interface Deserializer {
 
 	/**
-	 * Deserializes byte array data into a new instance of `clazz`.
+	 * Asynchronously deserializes a byte array data into a new instance of the given class.
 	 */
 	@Nonnull
-	<CT extends Serializable> CT deserialize(@Nonnull byte[] data, @Nonnull Class<CT> clazz);
+	<CT extends Serializable> CompletableFuture<CT> deserialize(@Nonnull byte[] data, @Nonnull Class<CT> clazz);
 
 	/**
-	 * Deserializes byte array data into a new instance of `type`.
+	 * Asynchronously deserializes a byte array data into a new instance of the given type.
 	 */
 	@Nonnull
-	<CT extends Serializable> CT deserialize(@Nonnull byte[] data, @Nonnull Type type);
+	<CT extends Serializable> CompletableFuture<CT> deserialize(@Nonnull byte[] data, @Nonnull Type type);
 }

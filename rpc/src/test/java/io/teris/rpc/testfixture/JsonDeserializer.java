@@ -7,6 +7,7 @@ package io.teris.rpc.testfixture;
 import java.io.IOException;
 import java.io.Serializable;
 import java.lang.reflect.Type;
+import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 
 import io.teris.rpc.Deserializer;
@@ -20,23 +21,27 @@ public class JsonDeserializer extends JsonSerializerBase implements Deserializer
 
 	@Nonnull
 	@Override
-	public <CT extends Serializable> CT deserialize(@Nonnull byte[] data, @Nonnull Class<CT> clazz) {
-		try {
-			return jsonMapper.readValue(data, clazz);
-		}
-		catch (IOException ex) {
-			throw new RuntimeException(ex.getCause() != null ? ex.getCause() : ex);
-		}
+	public <CT extends Serializable> CompletableFuture<CT> deserialize(@Nonnull byte[] data, @Nonnull Class<CT> clazz) {
+		return CompletableFuture.supplyAsync(() -> {
+			try {
+				return mapper.readValue(data, clazz);
+			}
+			catch (IOException ex) {
+				throw new RuntimeException(ex.getCause() != null ? ex.getCause() : ex);
+			}
+		});
 	}
 
 	@Nonnull
 	@Override
-	public <CT extends Serializable> CT deserialize(@Nonnull byte[] data, @Nonnull Type type) {
-		try {
-			return jsonMapper.readValue(data, jsonMapper.constructType(type));
-		}
-		catch (IOException ex) {
-			throw new RuntimeException(ex.getCause() != null ? ex.getCause() : ex);
-		}
+	public <CT extends Serializable> CompletableFuture<CT> deserialize(@Nonnull byte[] data, @Nonnull Type type) {
+		return CompletableFuture.supplyAsync(() -> {
+			try {
+				return mapper.readValue(data, mapper.constructType(type));
+			}
+			catch (IOException ex) {
+				throw new RuntimeException(ex.getCause() != null ? ex.getCause() : ex);
+			}
+		});
 	}
 }

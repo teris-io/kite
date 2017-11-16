@@ -16,14 +16,17 @@ public class BusinessException extends ServiceException {
 
 	static final long serialVersionUID = 23489765234056L;
 
-	public BusinessException(@Nullable String message, @Nonnull StackTraceElement... stackTrace) {
-		super(message, stackTrace);
-	}
-
 	/**
 	 * Constructs a BusinessException with the provided cause.
 	 */
 	public BusinessException(@Nonnull Throwable cause) {
 		super(cause);
+	}
+
+	/**
+	 * Constructs an instance dispatching from an instance of {@link ExceptionDataHolder}
+	 */
+	BusinessException(@Nullable String message, @Nonnull StackTraceElement... stackTrace) {
+		super(message, stackTrace);
 	}
 }
