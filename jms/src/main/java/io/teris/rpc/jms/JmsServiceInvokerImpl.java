@@ -15,6 +15,7 @@ import javax.annotation.Nullable;
 import javax.jms.BytesMessage;
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
+import javax.jms.DeliveryMode;
 import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.MessageListener;
@@ -24,11 +25,16 @@ import javax.jms.Session;
 import javax.jms.TextMessage;
 import javax.jms.Topic;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.teris.rpc.Context;
 import io.teris.rpc.InvocationException;
 
 
 class JmsServiceInvokerImpl implements JmsServiceInvoker {
+
+	private static final Logger logger = LoggerFactory.getLogger(JmsServiceInvoker.class);
 
 	private final Connection connection;
 
@@ -51,14 +57,14 @@ class JmsServiceInvokerImpl implements JmsServiceInvoker {
 		requestSession = connection.createSession(false, Session.CLIENT_ACKNOWLEDGE);
 		requestTopic = requestSession.createTopic(topicName);
 		requestProducer = requestSession.createProducer(requestTopic);
-		// requestProducer.setDeliveryMode(DeliveryMode.NON_PERSISTENT);
+		requestProducer.setDeliveryMode(DeliveryMode.NON_PERSISTENT);
 		// producer.setTimeToLive(10000000);
 
 		responseSession = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
 		responseQueue = responseSession.createTemporaryQueue();
 		responseSession
 			.createConsumer(responseQueue)
-			.setMessageListener(new ResponseReceiver(requestStore));
+			.setMessageListener(new ResponseReceiver(responseQueue.toString(), requestStore));
 	}
 
 	static class BuilderImpl implements JmsServiceInvoker.Builder {
@@ -87,28 +93,26 @@ class JmsServiceInvokerImpl implements JmsServiceInvoker {
 	@Nonnull
 	@Override
 	public CompletableFuture<Entry<Context, byte[]>> call(@Nonnull String route, @Nonnull Context context, @Nullable byte[] outgoing) {
-		Context outgoingContext = new Context(context); // FIXME do I need to copy, deal with request id
-		String requestId = outgoingContext.get(Context.REQUEST_ID_KEY); // FIXME corr or req id?
 		CompletableFuture<Entry<Context, byte[]>> promise = new CompletableFuture<>();
 		try {
 			BytesMessage message = requestSession.createBytesMessage();
 			if (outgoing != null) {
 				message.writeBytes(outgoing);
 			}
-
-			for (Entry<String, String> entry: outgoingContext.entrySet()) {
+			for (Entry<String, String> entry: context.entrySet()) {
 				message.setStringProperty(entry.getKey(), entry.getValue());
 			}
 			message.setJMSReplyTo(responseQueue);
-			message.setJMSCorrelationID(requestId);
 
 			message.setStringProperty(JmsServiceRouterImpl.JMS_ROUTE, route);
-			message.setStringProperty(Context.CONTENT_TYPE_KEY, outgoingContext.get(Context.CONTENT_TYPE_KEY));
-			requestStore.put(requestId, new SimpleEntry<>(context, promise));
-			requestProducer.send(requestTopic, message);
+			message.setStringProperty(Context.CONTENT_TYPE_KEY, context.get(Context.CONTENT_TYPE_KEY));
+			synchronized (requestStore) {
+				requestProducer.send(requestTopic, message);
+				requestStore.put(message.getJMSMessageID(), new SimpleEntry<>(context, promise));
+			}
+			logger.debug("client sent request {} to '{}'", message.getJMSMessageID(), requestTopic.getTopicName());
 		}
 		catch (JMSException ex) {
-			// requestStore.remove(requestId);
 			promise.completeExceptionally(ex);
 		}
 		return promise;
@@ -116,30 +120,33 @@ class JmsServiceInvokerImpl implements JmsServiceInvoker {
 
 	static class ResponseReceiver implements MessageListener {
 
+		private final String responseQueueName;
+
 		private final Map<String, Entry<Context, CompletableFuture<Entry<Context, byte[]>>>> requestStore;
 
-		ResponseReceiver(Map<String, Entry<Context, CompletableFuture<Entry<Context, byte[]>>>> requestStore) {
+		ResponseReceiver(String responseQueueName, Map<String, Entry<Context, CompletableFuture<Entry<Context, byte[]>>>> requestStore) {
+			this.responseQueueName = responseQueueName;
 			this.requestStore = requestStore;
 		}
 
 		@Override
 		public void onMessage(Message message) {
-			String requestId;
+			CompletableFuture<Entry<Context, byte[]>> promise = null;
+			String correlationId = null;
 			try {
-				requestId = message.getJMSCorrelationID();
-			}
-			catch (JMSException ex) {
-				// FIXME log
-				return;
-			}
-			Entry<Context, CompletableFuture<Entry<Context, byte[]>>> entry = requestStore.remove(requestId);
-			if (entry == null) {
-				// FIXME log
-				return;
-			}
-			CompletableFuture<Entry<Context, byte[]>> promise = entry.getValue();
-			try {
+				correlationId = message.getJMSCorrelationID();
 
+				Entry<Context, CompletableFuture<Entry<Context, byte[]>>> entry;
+				synchronized (requestStore) {
+					entry = requestStore.remove(correlationId);
+				}
+				if (entry == null || entry.getValue() == null) {
+					throw new JMSException("No request information found");
+				}
+
+				logger.debug("client received response for {} on  '{}'", correlationId, responseQueueName);
+
+				promise = entry.getValue();
 				if (message instanceof BytesMessage) {
 					Context context = entry.getKey();
 					Enumeration e = message.getPropertyNames();
@@ -160,11 +167,16 @@ class JmsServiceInvokerImpl implements JmsServiceInvoker {
 					promise.completeExceptionally(new InvocationException(((TextMessage) message).getText()));
 				}
 				else {
-					promise.completeExceptionally(new InvocationException("unsupported message type"));
+					throw new JMSException("Unsupported message type");
 				}
 			}
 			catch (JMSException ex) {
-				promise.completeExceptionally(ex);
+				if (promise != null) {
+					promise.completeExceptionally(ex);
+				}
+				else {
+					logger.error(String.format("client %s from '%s' failed to process", correlationId, responseQueueName), ex);
+				}
 			}
 		}
 	}

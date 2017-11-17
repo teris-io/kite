@@ -22,14 +22,18 @@ import javax.jms.Session;
 import javax.jms.TextMessage;
 import javax.jms.Topic;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import io.teris.rpc.Context;
 import io.teris.rpc.ServiceDispatcher;
 
 
 class JmsServiceRouterImpl implements JmsServiceRouter, JmsServiceRouter.Router {
 
-	static final String JMS_ROUTE = "JMS_ROUTE";
+	private static final Logger logger = LoggerFactory.getLogger(JmsServiceRouter.class);
 
+	static final String JMS_ROUTE = "JMS_ROUTE";
 
 	private final Connection connection;
 
@@ -96,18 +100,21 @@ class JmsServiceRouterImpl implements JmsServiceRouter, JmsServiceRouter.Router 
 
 		requestSession
 			.createConsumer(requestTopic, filter)
-			.setMessageListener(new RequestConsumer(serviceDispatchers, responseSession));
+			.setMessageListener(new RequestConsumer(requestTopic.getTopicName(), serviceDispatchers, responseSession));
 		return this;
 	}
 
 
 	static class RequestConsumer implements MessageListener {
 
+		private final String topicName;
+
 		private final Map<String, ServiceDispatcher> serviceDispatchers;
 
 		private final Session responseSession;
 
-		RequestConsumer(Map<String, ServiceDispatcher> serviceDispatchers, Session responseSession) {
+		RequestConsumer(String topicName, Map<String, ServiceDispatcher> serviceDispatchers, Session responseSession) {
+			this.topicName = topicName;
 			// do not copy content, assign reference
 			this.serviceDispatchers = serviceDispatchers;
 			this.responseSession = responseSession;
@@ -115,25 +122,19 @@ class JmsServiceRouterImpl implements JmsServiceRouter, JmsServiceRouter.Router 
 
 		@Override
 		public void onMessage(Message message) {
-			Destination replyTo;
 			try {
-				replyTo = message.getJMSReplyTo();
+				Destination replyTo = message.getJMSReplyTo();
 				if (replyTo == null) {
-					message.acknowledge();
-					throw new JMSException("reply desitnation unavailable"); // FIXME
+					throw new JMSException("No address to reply");
 				}
-			}
-			catch (JMSException ex) {
-				// FIXME log
-				return;
-			}
 
-			try {
+				logger.debug("server received request {} on '{}'", message.getJMSMessageID(), topicName);
+
 				if (message instanceof BytesMessage) {
 					String route = message.getStringProperty(JMS_ROUTE);
 					ServiceDispatcher serviceDispatcher = serviceDispatchers.get(route);
 					if (serviceDispatcher == null) {
-						throw new JMSException(String.format("no service to %s", route));
+						throw new JMSException(String.format("no service for route %s", route));
 					}
 					Context context = new Context();
 					Enumeration e = message.getPropertyNames();
@@ -154,7 +155,7 @@ class JmsServiceRouterImpl implements JmsServiceRouter, JmsServiceRouter.Router 
 								respond(message, t);
 							}
 							else if (entry == null) {
-								respond(message, new NullPointerException("empty response"));
+								respond(message, new NullPointerException("Empty response"));
 							}
 							else {
 								respond(message, entry.getKey(), entry.getValue());
@@ -162,7 +163,7 @@ class JmsServiceRouterImpl implements JmsServiceRouter, JmsServiceRouter.Router 
 						});
 				}
 				else {
-					throw new JMSException("wrong message type");
+					throw new JMSException(String.format("unsupported message type %s", message.getClass().getSimpleName()));
 				}
 			}
 			catch (JMSException ex) {
@@ -172,29 +173,39 @@ class JmsServiceRouterImpl implements JmsServiceRouter, JmsServiceRouter.Router 
 
 		private void respond(Message message, Throwable t) {
 			try {
-				TextMessage responseMessage = responseSession.createTextMessage(t.getMessage()); // FIXME message
-				responseMessage.setJMSCorrelationID(message.getJMSCorrelationID());
-				responseSession.createProducer(message.getJMSReplyTo()).send(responseMessage);
-				message.acknowledge();
+				if (message.getJMSReplyTo() != null) {
+					TextMessage responseMessage = responseSession.createTextMessage(t.getMessage()); // FIXME message null
+					responseMessage.setJMSCorrelationID(message.getJMSMessageID());
+					responseSession.createProducer(message.getJMSReplyTo()).send(responseMessage);
+					message.acknowledge();
+					logger.debug("server sent response for {} to '{}'", responseMessage.getJMSCorrelationID(), message.getJMSReplyTo());
+				}
+				else {
+					message.acknowledge();
+					logger.error(String.format("No address to reply for Id %s", message.getJMSMessageID()), t);
+				}
 			}
 			catch (JMSException ex) {
 				// FIXME implement with retries, log
+				logger.error(String.format("Failed to send response to request %s", message), ex);
 			}
 		}
 
 		private void respond(Message message, Context context, byte[] data) {
 			try {
 				BytesMessage responseMessage = responseSession.createBytesMessage();
-				responseMessage.setJMSCorrelationID(message.getJMSCorrelationID());
+				responseMessage.setJMSCorrelationID(message.getJMSMessageID());
 				responseMessage.writeBytes(data);
 				for (Entry<String, String> entry: context.entrySet()) {
 					responseMessage.setStringProperty(entry.getKey(), entry.getValue());
 				}
 				responseSession.createProducer(message.getJMSReplyTo()).send(responseMessage);
 				message.acknowledge();
+				logger.debug("server sent response for {} to '{}'", responseMessage.getJMSCorrelationID(), message.getJMSReplyTo());
 			}
 			catch (JMSException ex) {
 				// FIXME implement with retries, log
+				logger.error(String.format("Failed to send response to request %s", message), ex);
 			}
 		}
 	}

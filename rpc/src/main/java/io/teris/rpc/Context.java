@@ -8,7 +8,6 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
-import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
@@ -19,12 +18,10 @@ public class Context implements Map<String, String> {
 
 	public static final String REQUEST_ID_KEY = "X-Request-ID";
 
-	public static final String CORR_ID_KEY = "X-Correlation-ID";
-
 	public static final String CONTENT_TYPE_KEY = "Content-Type";
 
 
-	public static volatile Supplier<String> uniqueIdGenerator = UUID.randomUUID()::toString;
+	public static volatile Supplier<String> uniqueIdGenerator = () -> String.valueOf(System.nanoTime());
 
 
 	private static final String DEFAULT_CONTENT_TYPE = "application/json";
@@ -45,9 +42,6 @@ public class Context implements Map<String, String> {
 			data.putAll(context);
 		}
 		put(REQUEST_ID_KEY, uniqueIdGenerator.get());
-		if (!containsKey(CORR_ID_KEY) || "".equals(data.get(CORR_ID_KEY).trim())) {
-			data.put(CORR_ID_KEY, uniqueIdGenerator.get());
-		}
 		if (!containsKey(CONTENT_TYPE_KEY) || "".equals(data.get(CONTENT_TYPE_KEY).trim())) {
 			data.put(CONTENT_TYPE_KEY, DEFAULT_CONTENT_TYPE);
 		}
