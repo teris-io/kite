@@ -6,9 +6,9 @@ plugins.apply(JavaPlugin)
 
 dependencies {
 	compileOnly(findbugsModule)
-	compile("org.apache.geronimo.specs:geronimo-jms_1.1_spec:1.1.1")
+	compile(slf4jModule)
+	compile(geronimoJmsModule)
 	compile(project(":rpc"))
-
 
 	testCompile(junitModule)
 	testCompile(mockitoModule)
@@ -17,5 +17,6 @@ dependencies {
 	testCompile(project(":serialization-json"))
 
 	// amq persistence
-	testRuntime("org.apache.activemq:activemq-kahadb-store:5.15.2")
+	testRuntime(activemqKahaDbModule)
+	testRuntime(logbackModule)
 }

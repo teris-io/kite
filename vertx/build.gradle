@@ -6,10 +6,13 @@ plugins.apply(JavaPlugin)
 
 dependencies {
 	compileOnly(findbugsModule)
+	compile(slf4jModule)
 	compile(vertxWebModule)
 	compile(project(":rpc"))
 
 	testCompile(junitModule)
 	testCompile(mockitoModule)
 	testCompile(project(":serialization-json"))
+
+	testRuntime(logbackModule)
 }

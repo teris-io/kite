@@ -7,17 +7,22 @@ import java.nio.file.Paths
 ext {
 	activemqBrokerModule = "org.apache.activemq:activemq-broker:5.15.2"
 	activemqClientModule = "org.apache.activemq:activemq-client:5.15.2"
+	activemqKahaDbModule = "org.apache.activemq:activemq-kahadb-store:5.15.2"
 	findbugsModule = "com.google.code.findbugs:annotations:3.0.1"
+	geronimoJmsModule = "org.apache.geronimo.specs:geronimo-jms_1.1_spec:1.1.1"
 	jacksonDatabindModule = "com.fasterxml.jackson.core:jackson-databind:2.9.2"
 	jacksonDataformatXmlModule = "com.fasterxml.jackson.dataformat:jackson-dataformat-xml:2.9.2"
 	jacksonDataformatYamlModule = "com.fasterxml.jackson.dataformat:jackson-dataformat-yaml:2.9.2"
 	jacksonDataformatYamlModule = "com.fasterxml.jackson.dataformat:jackson-dataformat-protobuf:2.9.2"
 	jacksonDatatypeJSR310Module = "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.9.2"
-	woodstockCoreAslModule = "org.codehaus.woodstox:woodstox-core-asl:4.4.1"
+	logbackModule = "ch.qos.logback:logback-core:1.2.3"
+	slf4jModule = "org.slf4j:slf4j-api:1.7.25"
 	vertxWebModule = "io.vertx:vertx-web:3.5.0"
+	woodstockCoreAslModule = "org.codehaus.woodstox:woodstox-core-asl:4.4.1"
 
 	junitModule = "junit:junit:4.12"
 	mockitoModule = "org.mockito:mockito-core:2.12.0"
+
 }
 
 allprojects {
@@ -33,25 +38,9 @@ subprojects {
   plugins.apply(JavaPlugin)
 	plugins.apply(MavenPlugin)
 
-	configurations {
-		integration
-
-		integrationTestCompile.extendsFrom(testCompile)
-		integrationTestRuntime.extendsFrom(testRuntime)
-	}
-
-	sourceSets {
-		integration {
-			compileClasspath += sourceSets.test.compileClasspath + sourceSets.main.compileClasspath
-			runtimeClasspath += sourceSets.test.runtimeClasspath + sourceSets.main.runtimeClasspath
-		}
-	}
-
 	task("integration", type: Test) {
-		dependsOn(subprojects*.test)
-		description = "Run integration tests from in [src/]integration/..."
-		setTestClassesDirs(sourceSets.integration.output.classesDirs)
-		setClasspath(sourceSets.integration.runtimeClasspath)
+		enabled = false
+		dependsOn(test)
 	}
 
 	tasks.withType(AbstractCompile) {
@@ -97,7 +86,6 @@ task("clean", type: Delete) {
 
 task("coverage", type: JacocoReport) {
 	dependsOn(subprojects*.integration)
-
 	executionData(fileTree(Paths.get(rootProject.buildDir.absolutePath, "jacoco").toFile()).include("*.exec"))
 
 	setSourceDirectories(files(subprojects*.sourceSets.main.java.srcDirs))

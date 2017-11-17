@@ -1,0 +1,44 @@
+/*
+ * Copyright (c) teris.io & Oleg Sklyar, 2017. All rights reserved 
+ */
+
+plugins.apply(JavaPlugin)
+
+dependencies {
+	testCompile(junitModule)
+	testCompile(mockitoModule)
+	testCompile(project(":serialization-json"))
+
+	testCompile(project(":vertx"))
+
+	testCompile(project(":jms"))
+	testCompile(activemqClientModule)
+	testCompile(activemqBrokerModule)
+	// amq persistence
+	testRuntime(activemqKahaDbModule)
+
+	testRuntime(logbackModule)
+}
+
+
+configurations {
+	integration
+
+	integrationTestCompile.extendsFrom(testCompile)
+	integrationTestRuntime.extendsFrom(testRuntime)
+}
+
+sourceSets {
+	integration {
+		compileClasspath += sourceSets.test.compileClasspath + sourceSets.main.compileClasspath
+		runtimeClasspath += sourceSets.test.runtimeClasspath + sourceSets.main.runtimeClasspath
+	}
+}
+
+integration {
+	enabled = true
+	description = "Run integration tests from in [src/]integration/..."
+	setTestClassesDirs(sourceSets.integration.output.classesDirs)
+	setClasspath(sourceSets.integration.runtimeClasspath)
+}
+

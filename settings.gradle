@@ -4,5 +4,7 @@
 
 include(":rpc")
 include(":serialization-json")
-include(":http-vertx")
+include(":vertx")
 include(":jms")
+
+include(":integration-tests")
