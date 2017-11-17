@@ -31,7 +31,7 @@ import io.teris.rpc.ServiceDispatcher;
 
 class JmsServiceRouterImpl implements JmsServiceRouter, JmsServiceRouter.Router {
 
-	private static final Logger logger = LoggerFactory.getLogger(JmsServiceRouter.class);
+	private static final Logger log = LoggerFactory.getLogger(JmsServiceRouter.class);
 
 	static final String JMS_ROUTE = "JMS_ROUTE";
 
@@ -128,7 +128,7 @@ class JmsServiceRouterImpl implements JmsServiceRouter, JmsServiceRouter.Router 
 					throw new JMSException("No address to reply");
 				}
 
-				logger.debug("server received request {} on '{}'", message.getJMSMessageID(), topicName);
+				log.debug("server received request {} on '{}'", message.getJMSMessageID(), topicName);
 
 				if (message instanceof BytesMessage) {
 					String route = message.getStringProperty(JMS_ROUTE);
@@ -178,16 +178,16 @@ class JmsServiceRouterImpl implements JmsServiceRouter, JmsServiceRouter.Router 
 					responseMessage.setJMSCorrelationID(message.getJMSMessageID());
 					responseSession.createProducer(message.getJMSReplyTo()).send(responseMessage);
 					message.acknowledge();
-					logger.debug("server sent response for {} to '{}'", responseMessage.getJMSCorrelationID(), message.getJMSReplyTo());
+					log.debug("server sent response for {} to '{}'", responseMessage.getJMSCorrelationID(), message.getJMSReplyTo());
 				}
 				else {
 					message.acknowledge();
-					logger.error(String.format("No address to reply for Id %s", message.getJMSMessageID()), t);
+					log.error(String.format("No address to reply for Id %s", message.getJMSMessageID()), t);
 				}
 			}
 			catch (JMSException ex) {
 				// FIXME implement with retries, log
-				logger.error(String.format("Failed to send response to request %s", message), ex);
+				log.error(String.format("Failed to send response to request %s", message), ex);
 			}
 		}
 
@@ -201,11 +201,11 @@ class JmsServiceRouterImpl implements JmsServiceRouter, JmsServiceRouter.Router 
 				}
 				responseSession.createProducer(message.getJMSReplyTo()).send(responseMessage);
 				message.acknowledge();
-				logger.debug("server sent response for {} to '{}'", responseMessage.getJMSCorrelationID(), message.getJMSReplyTo());
+				log.debug("server sent response for {} to '{}'", responseMessage.getJMSCorrelationID(), message.getJMSReplyTo());
 			}
 			catch (JMSException ex) {
 				// FIXME implement with retries, log
-				logger.error(String.format("Failed to send response to request %s", message), ex);
+				log.error(String.format("Failed to send response to request %s", message), ex);
 			}
 		}
 	}

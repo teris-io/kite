@@ -11,6 +11,8 @@ dependencies {
 
 	testCompile(project(":vertx"))
 
+	testCompile(project(":amqp"))
+
 	testCompile(project(":jms"))
 	testCompile(activemqClientModule)
 	testCompile(activemqBrokerModule)

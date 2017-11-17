@@ -24,7 +24,7 @@ public class Context implements Map<String, String> {
 	public static volatile Supplier<String> uniqueIdGenerator = () -> String.valueOf(System.nanoTime());
 
 
-	private static final String DEFAULT_CONTENT_TYPE = "application/json";
+	public static final String DEFAULT_CONTENT_TYPE = "application/json";
 
 	private final ConcurrentHashMap<String, String> data = new ConcurrentHashMap<>();
 

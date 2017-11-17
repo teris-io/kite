@@ -1,0 +1,18 @@
+/*
+ * Copyright (c) teris.io & Oleg Sklyar, 2017. All rights reserved 
+ */
+
+plugins.apply(JavaPlugin)
+
+dependencies {
+	compileOnly(findbugsModule)
+	compile(slf4jModule)
+	compile("com.rabbitmq:amqp-client:5.0.0")
+	compile(project(":rpc"))
+
+	testCompile(junitModule)
+	testCompile(activemqBrokerModule)
+	testCompile(project(":serialization-json"))
+
+	testRuntime(logbackModule)
+}

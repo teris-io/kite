@@ -34,7 +34,7 @@ import io.teris.rpc.InvocationException;
 
 class JmsServiceInvokerImpl implements JmsServiceInvoker {
 
-	private static final Logger logger = LoggerFactory.getLogger(JmsServiceInvoker.class);
+	private static final Logger log = LoggerFactory.getLogger(JmsServiceInvoker.class);
 
 	private final Connection connection;
 
@@ -110,7 +110,7 @@ class JmsServiceInvokerImpl implements JmsServiceInvoker {
 				requestProducer.send(requestTopic, message);
 				requestStore.put(message.getJMSMessageID(), new SimpleEntry<>(context, promise));
 			}
-			logger.debug("client sent request {} to '{}'", message.getJMSMessageID(), requestTopic.getTopicName());
+			log.debug("client sent request {} to '{}'", message.getJMSMessageID(), requestTopic.getTopicName());
 		}
 		catch (JMSException ex) {
 			promise.completeExceptionally(ex);
@@ -144,7 +144,7 @@ class JmsServiceInvokerImpl implements JmsServiceInvoker {
 					throw new JMSException("No request information found");
 				}
 
-				logger.debug("client received response for {} on  '{}'", correlationId, responseQueueName);
+				log.debug("client received response for {} on  '{}'", correlationId, responseQueueName);
 
 				promise = entry.getValue();
 				if (message instanceof BytesMessage) {
@@ -167,7 +167,7 @@ class JmsServiceInvokerImpl implements JmsServiceInvoker {
 					promise.completeExceptionally(new InvocationException(((TextMessage) message).getText()));
 				}
 				else {
-					throw new JMSException("Unsupported message type");
+					promise.completeExceptionally(new InvocationException("Unsupported message type"));
 				}
 			}
 			catch (JMSException ex) {
@@ -175,7 +175,7 @@ class JmsServiceInvokerImpl implements JmsServiceInvoker {
 					promise.completeExceptionally(ex);
 				}
 				else {
-					logger.error(String.format("client %s from '%s' failed to process", correlationId, responseQueueName), ex);
+					log.error(String.format("client %s from '%s' failed to process", correlationId, responseQueueName), ex);
 				}
 			}
 		}

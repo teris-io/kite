@@ -6,5 +6,6 @@ include(":rpc")
 include(":serialization-json")
 include(":vertx")
 include(":jms")
+include(":amqp")
 
 include(":integration-tests")
