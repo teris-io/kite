@@ -59,6 +59,7 @@ class VertxServiceInvokerImpl extends RoutingBase implements VertxServiceInvoker
 	@Nonnull
 	@Override
 	public CompletableFuture<Entry<Context, byte[]>> call(@Nonnull String route, @Nonnull Context outgoingContext, @Nullable byte[] outgoing) {
+		// FIXME do I need to copy outgoingContext for new requestId?
 		CompletableFuture<Entry<Context, byte[]>> promise = new CompletableFuture<>();
 		HttpClientRequest httpRequest = httpClient.post(routeToUri(route), httpResponse -> {
 			if (httpResponse.statusCode() >= 400) {

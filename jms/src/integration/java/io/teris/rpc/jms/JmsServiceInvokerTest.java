@@ -2,7 +2,7 @@
  * Copyright (c) teris.io & Oleg Sklyar, 2017. All rights reserved
  */
 
-package io.teris.rpc.http.vertx;
+package io.teris.rpc.jms;
 
 import static org.junit.Assert.assertEquals;
 
@@ -12,8 +12,9 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
 
+import org.apache.activemq.ActiveMQConnectionFactory;
+import org.apache.activemq.broker.BrokerService;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
 import org.junit.Ignore;
@@ -28,15 +29,9 @@ import io.teris.rpc.Service;
 import io.teris.rpc.ServiceCreator;
 import io.teris.rpc.ServiceDispatcher;
 import io.teris.rpc.serialization.json.JsonSerializer;
-import io.vertx.core.Vertx;
-import io.vertx.core.http.HttpClient;
-import io.vertx.core.http.HttpClientOptions;
-import io.vertx.core.http.HttpServer;
-import io.vertx.core.http.HttpServerOptions;
-import io.vertx.ext.web.Router;
 
 
-public class VertxServiceInvokerTest {
+public class JmsServiceInvokerTest {
 
 	@Rule
 	public ExpectedException exception = ExpectedException.none();
@@ -80,11 +75,11 @@ public class VertxServiceInvokerTest {
 		}
 	}
 
-	// server side
-	private static HttpServer server;
+	private static final String topicName = "RPC";
 
-	// client side
 	private static AService service;
+
+	private static BrokerService broker;
 
 	@BeforeClass
 	public static void init() throws Exception {
@@ -99,14 +94,18 @@ public class VertxServiceInvokerTest {
 			}
 		}
 
-		HttpServerOptions httpServerOptions = new HttpServerOptions().setHost("0.0.0.0").setPort(port);
+		String brokerUrl = String.format("tcp://localhost:%d", Integer.valueOf(port));
+		String clientUrl = brokerUrl + "?jms.useAsyncSend=true";
 
+		broker = new BrokerService();
+		broker.setUseJmx(true);
+		broker.addConnector(brokerUrl);
+		broker.start();
 
-		Vertx vertx = Vertx.vertx();
-
-		HttpClient httpClient = vertx.createHttpClient(new HttpClientOptions().setDefaultHost("localhost").setDefaultPort(port));
-
-		VertxServiceInvoker invoker = VertxServiceInvoker.builder(httpClient).build();
+		JmsServiceInvoker invoker = JmsServiceInvoker.builder(new ActiveMQConnectionFactory(clientUrl))
+			.topicName(topicName)
+			.build()
+			.start();
 
 		ServiceCreator creator = ServiceCreator.builder()
 			.serviceInvoker(invoker)
@@ -115,36 +114,22 @@ public class VertxServiceInvokerTest {
 
 		service = creator.newInstance(AService.class);
 
-		// http server listening on localhost:port and dispatching to the actual implementation
-
-		Router router = Router.router(vertx);
 
 		ServiceDispatcher dispatcher = ServiceDispatcher.builder()
 			.serializer(new JsonSerializer())
 			.bind(AService.class, new AServiceImpl())
 			.build();
 
-		VertxServiceRouter.builder(router).build()
-			.route(dispatcher);
-
-		CompletableFuture<HttpServer> promise = new CompletableFuture<>();
-		CompletableFuture.runAsync(() ->
-			vertx.createHttpServer(httpServerOptions)
-				.requestHandler(router::accept)
-				.listen(handler -> {
-					if (handler.failed()) {
-						promise.completeExceptionally(handler.cause());
-						return;
-					}
-					promise.complete(handler.result());
-				}));
-
-		server = promise.get(5, TimeUnit.SECONDS);
+		JmsServiceRouter.builder(new ActiveMQConnectionFactory(clientUrl))
+			.topicName(topicName)
+			.build()
+			.route(dispatcher)
+			.start();
 	}
 
 	@AfterClass
-	public static void teardown() {
-		server.close();
+	public static void teardown() throws Exception {
+		broker.stop();
 	}
 
 	@Test
@@ -195,10 +180,10 @@ public class VertxServiceInvokerTest {
 
 	@Ignore
 	@Test
-	public void invoke_sync_benchmark_async_success() throws Exception{
+	public void invoke_benchmark_async_success() throws Exception{
 		Context context = new Context();
 		List<CompletableFuture<Double>> promises = new ArrayList<>();
-		for (int i = 0; i < 20000; i++) {
+		for (int i = 0; i < 5; i++) {
 			promises.add(service.subtract(context, Double.valueOf(341.2), Double.valueOf(359.3)));
 		}
 		CompletableFuture.allOf(promises.toArray(new CompletableFuture[]{})).get();
@@ -206,10 +191,11 @@ public class VertxServiceInvokerTest {
 
 	@Ignore
 	@Test
-	public void invoke_sync_benchmark_sync_success() {
+	public void invoke_benchmark_sync_success() {
 		Context context = new Context();
 		for (int i = 0; i < 20000; i++) {
 			service.add(context, Double.valueOf(341.2), Double.valueOf(359.3));
 		}
 	}
+
 }

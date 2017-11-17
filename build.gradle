@@ -5,6 +5,8 @@
 import java.nio.file.Paths
 
 ext {
+	activemqBrokerModule = "org.apache.activemq:activemq-broker:5.15.2"
+	activemqClientModule = "org.apache.activemq:activemq-client:5.15.2"
 	findbugsModule = "com.google.code.findbugs:annotations:3.0.1"
 	jacksonDatabindModule = "com.fasterxml.jackson.core:jackson-databind:2.9.2"
 	jacksonDataformatXmlModule = "com.fasterxml.jackson.dataformat:jackson-dataformat-xml:2.9.2"

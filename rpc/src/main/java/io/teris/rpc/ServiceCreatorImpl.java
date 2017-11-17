@@ -181,7 +181,7 @@ class ServiceCreatorImpl implements ServiceCreator {
 					result.completeExceptionally(t1);
 					return;
 				}
-				serviceInvoker.call(routingKey, context, data)
+				serviceInvoker.call(routingKey, new Context(context), data) // copy context to get new x-request-id
 					.whenComplete((entry, t2) -> {
 						if (t2 != null) {
 							result.completeExceptionally(t2);

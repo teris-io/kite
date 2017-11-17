@@ -1,0 +1,21 @@
+/*
+ * Copyright (c) teris.io & Oleg Sklyar, 2017. All rights reserved 
+ */
+
+plugins.apply(JavaPlugin)
+
+dependencies {
+	compileOnly(findbugsModule)
+	compile("org.apache.geronimo.specs:geronimo-jms_1.1_spec:1.1.1")
+	compile(project(":rpc"))
+
+
+	testCompile(junitModule)
+	testCompile(mockitoModule)
+	testCompile(activemqClientModule)
+	testCompile(activemqBrokerModule)
+	testCompile(project(":serialization-json"))
+
+	// amq persistence
+	testRuntime("org.apache.activemq:activemq-kahadb-store:5.15.2")
+}
