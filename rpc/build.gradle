@@ -10,5 +10,5 @@ dependencies {
 	testCompileOnly(findbugsModule)
 	testCompile(junitModule)
 	testCompile(mockitoModule)
-	testCompile(jacksonDatabindModule)
+	testCompile(gsonModule)
 }

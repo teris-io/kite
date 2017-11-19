@@ -32,6 +32,10 @@ public abstract class AbstractInvocationTestsuite {
 
 	static ThrowingService throwingService;
 
+	private final int nthreads = 5;
+
+	private final int nrequests = 20;
+
 	@Test
 	public void roundtrip_single_sync_success() {
 		Context context = new Context();
@@ -93,12 +97,12 @@ public abstract class AbstractInvocationTestsuite {
 	}
 
 	@Test
-	public void benchmark_async_invocations10x200() throws Exception {
+	public void benchmark_async_invocationsNThreadsxMRequests() throws Exception {
 		List<Callable<Void>> callables = new ArrayList<>();
-		for (int i = 0; i < 10; i++) {
+		for (int i = 0; i < nthreads; i++) {
 			callables.add(() -> {
 				List<Future<?>> invocations = new ArrayList<>();
-				for (int j = 0; j < 200; j++) {
+				for (int j = 0; j < nrequests; j++) {
 					invocations.add(asyncService.plus(new Context(), Double.valueOf(341.2), Double.valueOf(359.3)));
 				}
 				for (Future<?> future: invocations) {
@@ -114,11 +118,11 @@ public abstract class AbstractInvocationTestsuite {
 	}
 
 	@Test
-	public void benchmark_sync_invocations10x200() throws Exception {
+	public void benchmark_sync_invocationsNThreadsxMRequests() throws Exception {
 		List<Callable<Void>> callables = new ArrayList<>();
-		for (int i = 0; i < 10; i++) {
+		for (int i = 0; i < nthreads; i++) {
 			callables.add(() -> {
-				for (int j = 0; j < 200; j++) {
+				for (int j = 0; j < nrequests; j++) {
 					syncService.plus(new Context(), Double.valueOf(341.2), Double.valueOf(359.3));
 				}
 				return null;

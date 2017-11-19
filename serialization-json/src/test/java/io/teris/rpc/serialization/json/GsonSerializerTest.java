@@ -21,30 +21,18 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
+import io.teris.rpc.Deserializer;
 import io.teris.rpc.Serializer;
 
 
-public class JsonSerializerTest {
+public class GsonSerializerTest {
 
 	@Rule
 	public ExpectedException exception = ExpectedException.none();
 
-	private final Serializer serializer = new JsonSerializer();
-
-	static class NoDefConstructor implements Serializable {
-		private static final long serialVersionUID = -210135588896687017L;
-
-		public int code;
-
-		public String name;
-
-		public double value = 25.0;
-
-		NoDefConstructor(int code, String name) {
-			this.code = code;
-			this.name = name;
-		}
-	}
+	private final Serializer serializer = GsonSerializer.builder().build();
+	
+	private final Deserializer deserializer = serializer.deserializer();
 
 	static class WithArray implements Serializable {
 		private static final long serialVersionUID = 5491293815791739629L;
@@ -58,27 +46,39 @@ public class JsonSerializerTest {
 
 	@Test
 	public void missingValues_ignoredInDeserialize() throws Exception {
-		MissingVals res = serializer.deserializer().deserialize("{}".getBytes(), MissingVals.class).get();
+		MissingVals res = deserializer.deserialize("{}".getBytes(), MissingVals.class).get();
 		assertNull(res.name);
 	}
 
 	@Test
 	public void missingList_deserializedAsNull() throws Exception {
-		WithArray res = serializer.deserializer().deserialize("{}".getBytes(), WithArray.class).get();
+		WithArray res = deserializer.deserialize("{}".getBytes(), WithArray.class).get();
 		assertNull(res.values);
 	}
 
 	@Test
 	public void emptyArray_deserializedEmpty() throws Exception {
-		WithArray res = serializer.deserializer().deserialize("{\"values\": []}".getBytes(), WithArray.class).get();
+		WithArray res = deserializer.deserialize("{\"values\": []}".getBytes(), WithArray.class).get();
 		assertEquals(Collections.emptyList(), res.values);
 	}
 
 	@Test
-	public void emptyArray_droppedInSerialization() throws Exception {
+	public void emptyArray_preservedInSerialization() throws Exception {
 		WithArray res = new WithArray();
 		res.values = new ArrayList<>();
-		assertEquals("{}", new String(serializer.serialize(res).get()));
+		assertEquals("{\"values\":[]}", new String(serializer.serialize(res).get()));
+	}
+
+	public enum TestEnum { one, two;	}
+
+	@Test
+	public void enum_serializedAsStrings() throws Exception {
+		assertEquals("\"one\"", new String(serializer.serialize(TestEnum.one).get()));
+	}
+
+	@Test
+	public void enum_deserializedFromStrings() throws Exception {
+		assertEquals(TestEnum.two, deserializer.deserialize("two".getBytes(), TestEnum.class).get());
 	}
 
 	@Test
@@ -100,13 +100,13 @@ public class JsonSerializerTest {
 
 	@Test
 	public void deserialize_LocalDateTime_ok() throws Exception {
-		WithLocalDateTime actual = serializer.deserializer().deserialize("{\"field\":\"2016-02-29T12:34:56.000234234\"}".getBytes(), WithLocalDateTime.class).get();
+		WithLocalDateTime actual = deserializer.deserialize("{\"field\":\"2016-02-29T12:34:56.000234234\"}".getBytes(), WithLocalDateTime.class).get();
 		assertEquals(LocalDateTime.of(2016, 2, 29, 12, 34, 56, 234234), actual.field);
 	}
 
 	@Test
 	public void deserialize_LocalDateTimeShortFormat_ok() throws Exception {
-		WithLocalDateTime actual = serializer.deserializer().deserialize("{\"field\":\"2016-02-29T12:34:56\"}".getBytes(), WithLocalDateTime.class).get();
+		WithLocalDateTime actual = deserializer.deserialize("{\"field\":\"2016-02-29T12:34:56\"}".getBytes(), WithLocalDateTime.class).get();
 		assertEquals(LocalDateTime.of(2016, 2, 29, 12, 34, 56, 0), actual.field);
 	}
 
@@ -116,15 +116,15 @@ public class JsonSerializerTest {
 
 	@Test
 	public void deserialize_zonedDateTime_okWithTimeZone() throws Exception {
-		WithZonedDateTime actual = serializer.deserializer().deserialize("{\"field\":\"2016-02-29T12:34:56Z\"}".getBytes(), WithZonedDateTime.class).get();
-		assertEquals(ZonedDateTime.of(LocalDateTime.of(2016, 2, 29, 12, 34, 56, 0), ZoneId.of("UTC")), actual.field);
+		WithZonedDateTime actual = deserializer.deserialize("{\"field\":\"2016-02-29T12:34:56Z\"}".getBytes(), WithZonedDateTime.class).get();
+		assertEquals(ZonedDateTime.of(LocalDateTime.of(2016, 2, 29, 12, 34, 56, 0), ZoneId.of("Z")), actual.field);
 	}
 
 	@Test
 	public void deserialize_zonedDateTime_throwsWithoutTimeZone() throws Exception {
 		exception.expect(ExecutionException.class);
 		exception.expectMessage("Text '2016-02-29T12:34:56' could not be parsed at index 19");
-		serializer.deserializer().deserialize("{\"field\":\"2016-02-29T12:34:56\"}".getBytes(), WithZonedDateTime.class).get();
+		deserializer.deserialize("{\"field\":\"2016-02-29T12:34:56\"}".getBytes(), WithZonedDateTime.class).get();
 	}
 
 	private static class TypedefOuter extends HashMap<String, Serializable> {}
@@ -143,8 +143,8 @@ public class JsonSerializerTest {
 		data.put("dates", dates);
 		byte[] payload = serializer.serialize(data).get();
 
-		CompletableFuture<HashMap<String, Serializable>> actual = serializer.deserializer().deserialize(payload, TypedefOuter.class.getGenericSuperclass());
-		CompletableFuture<HashSet<LocalDateTime>> actualDates = serializer.deserializer().deserialize((byte[]) actual.get().get("dates"), TypedefInner.class.getGenericSuperclass());
+		CompletableFuture<HashMap<String, Serializable>> actual = deserializer.deserialize(payload, TypedefOuter.class.getGenericSuperclass());
+		CompletableFuture<HashSet<LocalDateTime>> actualDates = deserializer.deserialize((byte[]) actual.get().get("dates"), TypedefInner.class.getGenericSuperclass());
 		assertEquals(dates, actualDates.get());
 	}
 }

@@ -6,11 +6,8 @@ plugins.apply(JavaPlugin)
 
 dependencies {
 	compileOnly(findbugsModule)
-	compile(jacksonDatabindModule)
-	compile(jacksonDatatypeJSR310Module)
 	compile(project(":rpc"))
+	compile(gsonModule)
 
-	testCompileOnly(findbugsModule)
 	testCompile(junitModule)
-	testCompile(mockitoModule)
 }

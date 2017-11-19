@@ -21,8 +21,8 @@ import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
 import io.teris.rpc.ServiceCreatorImpl.ClientServiceInvocationHandler;
-import io.teris.rpc.testfixture.JsonDeserializer;
-import io.teris.rpc.testfixture.JsonSerializer;
+import io.teris.rpc.testfixture.TestDeserializer;
+import io.teris.rpc.testfixture.TestSerializer;
 
 
 public class ServiceCreatorImplTest {
@@ -30,12 +30,12 @@ public class ServiceCreatorImplTest {
 	@Rule
 	public ExpectedException exception = ExpectedException.none();
 
-	private static final Serializer serializer = new JsonSerializer();
+	private static final Serializer serializer = new TestSerializer();
 
 	private static final Map<String, Deserializer> deserializerMap = new HashMap<>();
 
 	static {
-		deserializerMap.put(serializer.contentType(), new JsonDeserializer());
+		deserializerMap.put(serializer.contentType(), new TestDeserializer());
 	}
 
 	@Service
@@ -58,11 +58,11 @@ public class ServiceCreatorImplTest {
 	@Test
 	public void voidSyncReturn_nonNullTransfer_throws() {
 		// looks like accepted value for void (so it should actually fail trying to find deserializer)
-		ServiceInvoker requester = remoteCallerMock("{\"payload\": \"true\"}".getBytes());
+		ServiceInvoker requester = remoteCallerMock("{\"payload\": {}}".getBytes());
 		ClientServiceInvocationHandler handler = new ClientServiceInvocationHandler(requester, serializer, deserializerMap);
 		VoidService s = getProxy(VoidService.class, handler);
 		exception.expect(RuntimeException.class);
-		exception.expectMessage("Internal error: can't find deserializer for void");
+		exception.expectMessage("GSON cannot handle void");
 		s.voidable(new Context());
 	}
 
@@ -77,13 +77,12 @@ public class ServiceCreatorImplTest {
 
 	@Test
 	public void voidAsyncReturn_nonNullTransfer_throws() throws Exception {
-		// looks like accepted value for void (so it should actually fail trying to find deserializer)
-		ServiceInvoker requester = remoteCallerMock("{\"payload\": \"true\"}".getBytes());
+		ServiceInvoker requester = remoteCallerMock("{\"payload\": {}}".getBytes());
 		ClientServiceInvocationHandler handler = new ClientServiceInvocationHandler(requester, serializer, deserializerMap);
 		VoidService s = getProxy(VoidService.class, handler);
 		CompletableFuture<Void> future = s.voidableAsync(new Context());
 		exception.expect(ExecutionException.class);
-		exception.expectMessage("Cannot construct instance of `java.lang.Void`");
+		exception.expectMessage("ClassCastException: java.lang.Void cannot be cast to java.io.Serializable");
 		future.get();
 	}
 

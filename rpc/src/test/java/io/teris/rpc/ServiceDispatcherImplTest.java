@@ -22,7 +22,7 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import io.teris.rpc.testfixture.JsonSerializer;
+import io.teris.rpc.testfixture.TestSerializer;
 
 
 public class ServiceDispatcherImplTest {
@@ -30,7 +30,7 @@ public class ServiceDispatcherImplTest {
 	@Rule
 	public ExpectedException exception = ExpectedException.none();
 
-	private static final JsonSerializer serializer = new JsonSerializer();
+	private static final TestSerializer serializer = new TestSerializer();
 
 	private static final Deserializer deserializer = serializer.deserializer();
 

@@ -17,7 +17,7 @@ import io.teris.rpc.http.vertx.VertxServiceRouter;
 import io.teris.rpc.impl.AsyncServiceImpl;
 import io.teris.rpc.impl.SyncServiceImpl;
 import io.teris.rpc.impl.ThrowingServiceImpl;
-import io.teris.rpc.serialization.json.JsonSerializer;
+import io.teris.rpc.serialization.json.GsonSerializer;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientOptions;
@@ -53,7 +53,7 @@ public class TestVertxInvocationRountrip extends AbstractInvocationTestsuite {
 
 		ServiceCreator creator = ServiceCreator.builder()
 			.serviceInvoker(invoker)
-			.serializer(new JsonSerializer())
+			.serializer(GsonSerializer.builder().build())
 			.build();
 
 		syncService = creator.newInstance(SyncService.class);
@@ -64,13 +64,13 @@ public class TestVertxInvocationRountrip extends AbstractInvocationTestsuite {
 		Router router = Router.router(vertx);
 
 		ServiceDispatcher dispatcher1 = ServiceDispatcher.builder()
-			.serializer(new JsonSerializer())
+			.serializer(GsonSerializer.builder().build())
 			.bind(SyncService.class, new SyncServiceImpl("1"))
 			.bind(AsyncService.class, new AsyncServiceImpl("2"))
 			.build();
 
 		ServiceDispatcher dispatcher2 = ServiceDispatcher.builder()
-			.serializer(new JsonSerializer())
+			.serializer(GsonSerializer.builder().build())
 			.bind(ThrowingService.class, new ThrowingServiceImpl("3"))
 			.build();
 

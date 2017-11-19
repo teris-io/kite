@@ -2,27 +2,25 @@
  * Copyright (c) teris.io & Oleg Sklyar, 2017. All rights reserved
  */
 
-package io.teris.rpc.serialization.json;
+package io.teris.rpc.testfixture;
 
 import java.io.Serializable;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 
-import com.fasterxml.jackson.core.JsonProcessingException;
+import com.google.gson.Gson;
 
 import io.teris.rpc.Deserializer;
 import io.teris.rpc.Serializer;
 
 
-public class JsonSerializer extends JsonSerializerBase implements Serializer {
+public class TestSerializer implements Serializer {
 
 	private static final String CONTENT_TYPE = "application/json";
 
-	private final Deserializer deserializer = new JsonDeserializer();
+	private final Gson gson = new Gson();
 
-	public JsonSerializer() {
-		super();
-	}
+	private final Deserializer deserializer = new TestDeserializer();
 
 	@Nonnull
 	@Override
@@ -33,14 +31,7 @@ public class JsonSerializer extends JsonSerializerBase implements Serializer {
 	@Nonnull
 	@Override
 	public <V extends Serializable> CompletableFuture<byte[]> serialize(@Nonnull V value) {
-		return CompletableFuture.supplyAsync(() -> {
-			try {
-				return mapper.writeValueAsBytes(value);
-			}
-			catch (JsonProcessingException ex) {
-				throw new IllegalArgumentException(ex);
-			}
-		});
+		return CompletableFuture.supplyAsync(() -> gson.toJson(value).getBytes());
 	}
 
 	@Nonnull

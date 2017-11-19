@@ -14,7 +14,7 @@ import io.teris.rpc.amqp.AmqpServiceRouter;
 import io.teris.rpc.impl.AsyncServiceImpl;
 import io.teris.rpc.impl.SyncServiceImpl;
 import io.teris.rpc.impl.ThrowingServiceImpl;
-import io.teris.rpc.serialization.json.JsonSerializer;
+import io.teris.rpc.serialization.json.GsonSerializer;
 
 //@Ignore
 public class TestAmqpInvocationRoundtrip extends AbstractInvocationTestsuite {
@@ -41,7 +41,7 @@ public class TestAmqpInvocationRoundtrip extends AbstractInvocationTestsuite {
 
 		ServiceCreator creator = ServiceCreator.builder()
 			.serviceInvoker(invoker)
-			.serializer(new JsonSerializer())
+			.serializer(GsonSerializer.builder().build())
 			.build();
 
 		syncService = creator.newInstance(SyncService.class);
@@ -49,13 +49,13 @@ public class TestAmqpInvocationRoundtrip extends AbstractInvocationTestsuite {
 		throwingService = creator.newInstance(ThrowingService.class);
 
 		ServiceDispatcher dispatcher1 = ServiceDispatcher.builder()
-			.serializer(new JsonSerializer())
+			.serializer(GsonSerializer.builder().build())
 			.bind(SyncService.class, new SyncServiceImpl("1"))
 			.bind(AsyncService.class, new AsyncServiceImpl("2"))
 			.build();
 
 		ServiceDispatcher dispatcher2 = ServiceDispatcher.builder()
-			.serializer(new JsonSerializer())
+			.serializer(GsonSerializer.builder().build())
 			.bind(ThrowingService.class, new ThrowingServiceImpl("3"))
 			.build();
 
