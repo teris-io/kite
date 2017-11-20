@@ -14,10 +14,12 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Objects;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
+import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 
 import io.teris.rpc.internal.ProxyMethodUtil;
@@ -32,8 +34,8 @@ class ServiceCreatorImpl implements ServiceCreator {
 
 	private final InvocationHandler invocationHandler;
 
-	ServiceCreatorImpl(ServiceInvoker serviceInvoker, Serializer serializer, Map<String, Deserializer> deserializerMap) {
-		this.invocationHandler = new ClientServiceInvocationHandler(serviceInvoker, serializer, deserializerMap);
+	ServiceCreatorImpl(ServiceInvoker serviceInvoker, Serializer serializer, Map<String, Deserializer> deserializerMap, Supplier<String> uidGenerator) {
+		this.invocationHandler = new ClientServiceInvocationHandler(serviceInvoker, serializer, deserializerMap, uidGenerator);
 	}
 
 	@Nonnull
@@ -45,7 +47,8 @@ class ServiceCreatorImpl implements ServiceCreator {
 			return res;
 		}
 		catch (RuntimeException ex) {
-			throw new InvocationException(String.format("Failed to create a proxy instance for server %s", serviceClass.getSimpleName()), ex);
+			throw new InvocationException(String
+				.format("Failed to create a proxy instance for server %s", serviceClass.getSimpleName()), ex);
 		}
 	}
 
@@ -54,6 +57,8 @@ class ServiceCreatorImpl implements ServiceCreator {
 		private ServiceInvoker serviceInvoker = null;
 
 		private Serializer serializer = null;
+
+		private Supplier<String> uidGenerator = () -> UUID.randomUUID().toString();
 
 		private final Map<String, Deserializer> deserializerMap = new HashMap<>();
 
@@ -87,10 +92,18 @@ class ServiceCreatorImpl implements ServiceCreator {
 
 		@Nonnull
 		@Override
+		public Builder uidGenerator(@Nonnull Supplier<String> uidGenerator) {
+			this.uidGenerator = uidGenerator;
+			return this;
+		}
+
+		@Nonnull
+		@Override
 		public ServiceCreator build() {
 			Objects.requireNonNull(serviceInvoker, "Missing remote caller for an instance of the client service factory");
 			Objects.requireNonNull(serializer, "Missing serializer for an instance of the client service factory");
-			return new ServiceCreatorImpl(serviceInvoker, serializer, deserializerMap);
+			Objects.requireNonNull(uidGenerator, "Missing unique Id generator");
+			return new ServiceCreatorImpl(serviceInvoker, serializer, deserializerMap, uidGenerator);
 		}
 	}
 
@@ -115,9 +128,12 @@ class ServiceCreatorImpl implements ServiceCreator {
 
 		private final Map<String, Deserializer> deserializerMap = new HashMap<>();
 
-		ClientServiceInvocationHandler(ServiceInvoker serviceInvoker, Serializer serializer, Map<String, Deserializer> deserializerMap) {
+		private final Supplier<String> uidGenerator;
+
+		ClientServiceInvocationHandler(ServiceInvoker serviceInvoker, Serializer serializer, Map<String, Deserializer> deserializerMap, Supplier<String> uidGenerator) {
 			this.serviceInvoker = serviceInvoker;
 			this.serializer = serializer;
+			this.uidGenerator = uidGenerator;
 			this.deserializerMap.putAll(deserializerMap);
 		}
 
@@ -149,7 +165,6 @@ class ServiceCreatorImpl implements ServiceCreator {
 
 		private <RS extends Serializable> CompletableFuture<RS> callRemote(Method method, Object[] args) {
 			CompletableFuture<RS> result = new CompletableFuture<>();
-
 			Type type;
 			String routingKey;
 			Entry<Context, LinkedHashMap<String, Serializable>> parsedArgs;
@@ -163,7 +178,6 @@ class ServiceCreatorImpl implements ServiceCreator {
 				return result;
 			}
 
-
 			Context context = parsedArgs.getKey();
 			LinkedHashMap<String, Serializable> payload = parsedArgs.getValue();
 
@@ -174,69 +188,69 @@ class ServiceCreatorImpl implements ServiceCreator {
 			else {
 				serializationPromise = CompletableFuture.completedFuture(null);
 			}
-			// FIXME try thenCompose
-			serializationPromise.whenComplete((data, t1) -> {
-				if (t1 != null) {
-					t1 = t1 instanceof CompletionException && t1.getCause() != null ? t1.getCause() : t1;
-					result.completeExceptionally(t1);
-					return;
-				}
-				serviceInvoker.call(routingKey, new Context(context), data) // copy context to get new x-request-id
-					.whenComplete((entry, t2) -> {
-						if (t2 != null) {
-							result.completeExceptionally(t2);
-							return;
-						}
-						Context responseContext = entry.getKey();
-						if (responseContext != null) {
-							context.putAll(responseContext);
-						}
-						byte[] responseData = entry.getValue();
-						if (responseData == null) {
-							result.complete(null);
-							return;
-						}
+			Context requestContext = new Context(context);
+			requestContext.put(Context.X_REQUEST_ID_KEY, uidGenerator.get());
+			requestContext.put(Context.CONTENT_TYPE_KEY, serializer.contentType());
 
+			serializationPromise
+				.thenCompose((data) -> serviceInvoker.call(routingKey, requestContext, data))
+				.thenCompose((entry) -> {
+					byte[] responseData = entry.getValue();
+					Context responseContext = entry.getKey();
+					if (responseContext != null) {
+						requestContext.putAll(responseContext);
+					}
+					if (responseData != null) {
 						Deserializer deserializer =
-							deserializerMap.getOrDefault(context.get(Context.CONTENT_TYPE_KEY), serializer.deserializer());
-						deserializer.<HashMap<String, Serializable>>deserialize(responseData, Typedef.class
-							.getGenericSuperclass())
-							.whenComplete((response, t3) -> {
-								if (t3 != null) {
-									result.completeExceptionally(t3);
-									return;
-								}
-								byte[] responseException = (byte[]) response.get(ResponseFields.EXCEPTION);
-								byte[] responsePayload = (byte[]) response.get(ResponseFields.PAYLOAD);
-								if (responseException != null) {
-									deserializer.deserialize(responseException, ExceptionDataHolder.class).
-										whenComplete((eh, t4) -> {
-											if (t4 != null) {
-												result.completeExceptionally(t4);
-											}
-											else {
-												result.completeExceptionally(eh.exception());
-											}
-										});
-								}
-								else if (responsePayload != null) {
-									deserializer.<RS>deserialize(responsePayload, type)
-										.whenComplete((rs, t5) -> {
-											if (t5 != null) {
-												result.completeExceptionally(t5);
-											}
-											else {
-												result.complete(rs);
-											}
-										});
-								}
-								else {
-									result.complete(null);
-								}
-							});
-					});
-			});
-
+							deserializerMap.getOrDefault(requestContext.get(Context.CONTENT_TYPE_KEY), serializer.deserializer());
+						return deserializer.<HashMap<String, Serializable>>deserialize(responseData, Typedef.class
+							.getGenericSuperclass());
+					}
+					else {
+						return CompletableFuture.completedFuture(null);
+					}
+				})
+				.thenCompose((response) -> {
+					if (response == null) {
+						return CompletableFuture.completedFuture(null);
+					}
+					Deserializer deserializer =
+						deserializerMap.getOrDefault(requestContext.get(Context.CONTENT_TYPE_KEY), serializer.deserializer());
+					byte[] responseException = (byte[]) response.get(ResponseFields.EXCEPTION);
+					byte[] responsePayload = (byte[]) response.get(ResponseFields.PAYLOAD);
+					if (responseException != null) {
+						return deserializer.<Serializable>deserialize(responseException, ExceptionDataHolder.class);
+					}
+					else if (responsePayload != null) {
+						return deserializer.deserialize(responsePayload, type);
+					}
+					else {
+						return CompletableFuture.completedFuture(null);
+					}
+				})
+				.whenComplete((obj, t) -> {
+					// make sure original context now gets all the information
+					// (can potentially be overwritten by a concurrent request)
+					context.putAll(requestContext);
+					if (t != null && t.getCause() != null) {
+						t = t.getCause();
+					}
+					if (t instanceof RuntimeException) {
+						result.completeExceptionally(t);
+					}
+					else if (t != null) {
+						result.completeExceptionally(new InvocationException(String.format("Failed to invoke %s.%s",
+							method.getDeclaringClass().getSimpleName(), method.getName()), t));
+					}
+					else if (obj instanceof ExceptionDataHolder) {
+						result.completeExceptionally(((ExceptionDataHolder) obj).exception());
+					}
+					else {
+						@SuppressWarnings("unchecked")
+						RS res = (RS) obj;
+						result.complete(res);
+					}
+				});
 			return result;
 		}
 	}

@@ -100,67 +100,66 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 	@Nonnull
 	@Override
 	public CompletableFuture<Entry<Context, byte[]>> call(@Nonnull String route, @Nonnull Context context, @Nullable byte[] incomingData) {
-		CompletableFuture<Object> invocation = new CompletableFuture<>();
+
+		CompletableFuture<Object[]> incoming;
 		Entry<Object, Method> endpoint = endpoints.get(route);
-		if (endpoint != null) {
-
-			Method method = endpoint.getValue();
-			Object service = endpoint.getKey();
-
-			deserialize(context, method, incomingData)
-				.thenAccept(args -> {
-					if (CompletableFuture.class.isAssignableFrom(method.getReturnType())) {
-						try {
-							((CompletableFuture<?>) method.invoke(service, args)).whenComplete((obj, t) -> {
-								if (t != null) {
-									t = t instanceof CompletionException && t.getCause() != null ? t.getCause() : t;
-									invocation.completeExceptionally(new BusinessException(t));
-								}
-								else {
-									invocation.complete(obj);
-								}
-							});
-						}
-						catch (InvocationTargetException ex) {
-							invocation.completeExceptionally(new BusinessException(ex.getCause()));
-						}
-						catch (Exception ex) {
-							String message = String.format("Failed to invoke %s.%s", method.getDeclaringClass().getSimpleName(), method.getName());
-							invocation.completeExceptionally(new InvocationException(message, ex));
-						}
-					}
-					else {
-						CompletableFuture.runAsync(() -> {
-							try {
-								invocation.complete(method.invoke(service, args));
-							}
-							catch (IllegalAccessException ex) {
-								String message = String.format("Failed to invoke %s.%s", method.getDeclaringClass().getSimpleName(), method.getName());
-								invocation.completeExceptionally(new InvocationException(message, ex));
-							}
-							catch (InvocationTargetException ex) {
-								invocation.completeExceptionally(new BusinessException(ex.getCause()));
-							}
-							catch (Exception ex) {
-								invocation.completeExceptionally(new BusinessException(ex));
-							}
-						});
-					}
-				});
+		if (endpoint != null && endpoint.getKey() != null && endpoint.getValue() != null) {
+			incoming = deserialize(context, endpoint.getValue(), incomingData);
 		}
 		else {
-			invocation.completeExceptionally(new InvocationException(String.format("No route to %s", route)));
+			incoming = CompletableFuture.supplyAsync(() -> {
+				throw new InvocationException(String.format("No route to %s", route));
+			});
 		}
-		CompletableFuture<Entry<Context, byte[]>> result = new CompletableFuture<>();
-		invocation
+
+		return incoming
+			.thenCompose((Object[] args) -> {
+				Method method = Objects.requireNonNull(endpoint).getValue();
+				Object service = endpoint.getKey();
+				if (CompletableFuture.class.isAssignableFrom(method.getReturnType())) {
+					try {
+						return ((CompletableFuture<Object>) method.invoke(service, args))
+							.handle((obj, t) -> {
+								if (t != null) {
+									throw new BusinessException(t instanceof CompletionException ? t.getCause() : t);
+								}
+								return obj;
+							});
+					}
+					catch (InvocationTargetException ex) {
+						return CompletableFuture.supplyAsync(() -> new BusinessException(ex.getCause()));
+					}
+					catch (IllegalAccessException ex) {
+						return CompletableFuture.supplyAsync(() -> {
+							throw new InvocationException(String.format("Cannot invoke %s.%s",
+								method.getDeclaringClass().getSimpleName(), method.getName()), ex.getCause());
+						});
+					}
+				}
+				return CompletableFuture.supplyAsync(() -> {
+					try {
+						return method.invoke(service, args);
+					}
+					catch (InvocationTargetException ex) {
+						throw new BusinessException(ex.getCause());
+					}
+					catch (IllegalAccessException ex) {
+						throw new InvocationException(String.format("Cannot invoke %s.%s",
+							method.getDeclaringClass().getSimpleName(), method.getName()), ex.getCause());
+					}
+				});
+			})
 			.handle((obj, t) -> {
 				HashMap<String, Serializable> res = new HashMap<>();
+				if (t instanceof CompletionException) {
+					t = t.getCause();
+				}
 				if (t instanceof InvocationException) {
-					res.put(ResponseFields.EXCEPTION,new ExceptionDataHolder((InvocationException) t));
+					res.put(ResponseFields.EXCEPTION, new ExceptionDataHolder((InvocationException) t));
 					res.put(ResponseFields.ERROR_MESSAGE, t.getMessage() != null ? t.getMessage() : t.toString());
 				}
 				else if (t instanceof BusinessException) {
-					res.put(ResponseFields.EXCEPTION,new ExceptionDataHolder((BusinessException) t));
+					res.put(ResponseFields.EXCEPTION, new ExceptionDataHolder((BusinessException) t));
 					res.put(ResponseFields.ERROR_MESSAGE, t.getMessage() != null ? t.getMessage() : t.toString());
 				}
 				else if (t != null && t.getCause() != null) {
@@ -186,22 +185,8 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 				}
 				return res;
 			})
-			.whenComplete((ser, t) -> {
-				if (t != null) {
-					result.completeExceptionally(t);
-				}
-				else {
-					serializer.serialize(ser).whenComplete((bt, tn) -> {
-						if (tn != null) {
-							result.completeExceptionally(tn);
-						}
-						else {
-							result.complete(new SimpleEntry<>(context, bt));
-						}
-					});
-				}
-			});
-		return result;
+			.thenCompose(serializer::serialize)
+			.thenApply((ser) -> new SimpleEntry<>(context, ser));
 	}
 
 	private static class Typedef extends HashMap<String, Serializable> {}
@@ -219,11 +204,10 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 		Deserializer deserializer = deserializerMap.getOrDefault(context.get(Context.CONTENT_TYPE_KEY),
 			serializer.deserializer());
 
-		CompletableFuture<Object[]> result = new CompletableFuture<>();
-		deserializer.<HashMap<String, Serializable>>deserialize(data, Typedef.class.getGenericSuperclass())
-			.thenAccept((rawArgs) -> {
+		ConcurrentHashMap<String, Object> argMap = new ConcurrentHashMap<>();
+		return deserializer.<HashMap<String, Serializable>>deserialize(data, Typedef.class.getGenericSuperclass())
+			.thenCompose((rawArgs) -> {
 
-				ConcurrentHashMap<String, Object> argMap = new ConcurrentHashMap<>();
 				List<CompletableFuture<Void>> argPromises = new ArrayList<>();
 				for (int i = 1; i < method.getParameterCount(); i++) {
 					Parameter param = method.getParameters()[i];
@@ -240,32 +224,23 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 				}
 				if (rawArgs.size() > 0) {
 					String message = String.format("Too many arguments (%d instead of %s) to %s.%s",
-						Integer.valueOf(rawArgs.size() + method.getParameterCount() + 1), Integer.valueOf(method.getParameterCount()),
+						Integer.valueOf(rawArgs.size() + method.getParameterCount() + 1), Integer
+							.valueOf(method.getParameterCount()),
 						method.getDeclaringClass().getSimpleName(), method.getName());
-					result.completeExceptionally(new InvocationException(message));
-					return;
-
+					throw new InvocationException(message);
 				}
 
-				CompletableFuture
-					.allOf(argPromises.toArray(new CompletableFuture[]{}))
-					.whenComplete((v, t) -> {
-						if (t != null) {
-							result.completeExceptionally(t);
-						}
-						else {
-							for (int i = 1; i < method.getParameterCount(); i++) {
-								Parameter param = method.getParameters()[i];
-								Name nameAnnot = param.getAnnotation(Name.class); // validated on binding
-								if (nameAnnot != null) {
-									initial.set(i, argMap.get(nameAnnot.value()));
-								}
-							}
-							result.complete(initial.toArray());
-						}
-					});
+				return CompletableFuture.allOf(argPromises.toArray(new CompletableFuture[]{}));
+			})
+			.thenApply((vd) -> {
+				for (int i = 1; i < method.getParameterCount(); i++) {
+					Parameter param = method.getParameters()[i];
+					Name nameAnnot = param.getAnnotation(Name.class); // validated on binding
+					if (nameAnnot != null) {
+						initial.set(i, argMap.get(nameAnnot.value()));
+					}
+				}
+				return initial.toArray();
 			});
-		return result;
 	}
-
 }

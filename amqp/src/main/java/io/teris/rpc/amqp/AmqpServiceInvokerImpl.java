@@ -9,11 +9,11 @@ import java.util.AbstractMap.SimpleEntry;
 import java.util.Collections;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeoutException;
-import java.util.concurrent.atomic.AtomicLong;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -36,8 +36,6 @@ import io.teris.rpc.InvocationException;
 class AmqpServiceInvokerImpl implements AmqpServiceInvoker {
 
 	private static final Logger log = LoggerFactory.getLogger(AmqpServiceInvoker.class);
-
-	private static final AtomicLong counter = new AtomicLong(0);
 
 	static final String MSGTYPE_REQUEST = "request";
 
@@ -97,26 +95,28 @@ class AmqpServiceInvokerImpl implements AmqpServiceInvoker {
 	@Nonnull
 	@Override
 	public CompletableFuture<Entry<Context, byte[]>> call(@Nonnull String route, @Nonnull Context context, @Nullable byte[] outgoing) {
+		String correlationId = context.get(Context.X_REQUEST_ID_KEY);
 		CompletableFuture<Entry<Context, byte[]>> promise = new CompletableFuture<>();
 		try {
+			Objects.requireNonNull(correlationId, "Context contains no X-Request-Id");
 			@SuppressWarnings("unchecked")
 			Map<String, Object> headers = (Map) context;
-			String correlationId = "correlation-Id-" + counter.getAndIncrement(); // FIXME
 			BasicProperties props = new BasicProperties.Builder()
 				.correlationId(correlationId)
 				.replyTo(clientId)
-				.contentType(context.getOrDefault(Context.CONTENT_TYPE_KEY, Context.DEFAULT_CONTENT_TYPE))
+				.contentType(context.get(Context.CONTENT_TYPE_KEY))
 				.contentEncoding("UTF-8")
 				.headers(headers)
 				.type(MSGTYPE_REQUEST)
 				.build();
-			synchronized (requestStore) {
-				channel.basicPublish(exchangeName, route, props, outgoing);
 				requestStore.put(correlationId, new SimpleEntry<>(context, promise));
-			}
+				channel.basicPublish(exchangeName, route, props, outgoing);
 			log.debug("client sent request {} to '{}'", correlationId, exchangeName);
 		}
-		catch (IOException ex) {
+		catch (Exception ex) {
+			if (correlationId != null) {
+				requestStore.remove(correlationId);
+			}
 			promise.completeExceptionally(ex);
 		}
 		return promise;
@@ -136,22 +136,18 @@ class AmqpServiceInvokerImpl implements AmqpServiceInvoker {
 
 		@Override
 		public void handleDelivery(String consumerTag, Envelope envelope, BasicProperties props, byte[] body) {
-			CompletableFuture<Entry<Context, byte[]>> promise = null;
 			String correlationId = null;
 			try {
 				correlationId = props.getCorrelationId();
 
-				Entry<Context, CompletableFuture<Entry<Context, byte[]>>> entry;
-				synchronized (requestStore) {
-					entry = requestStore.remove(correlationId);
-				}
+				Entry<Context, CompletableFuture<Entry<Context, byte[]>>> entry = requestStore.remove(correlationId);
 				if (entry == null || entry.getValue() == null) {
 					throw new IOException("No request information found");
 				}
 
 				log.debug("client received response for {} on  '{}'", correlationId, "response-" + clientId);
 
-				promise = entry.getValue();
+				CompletableFuture<Entry<Context, byte[]>> promise = entry.getValue();
 				if (MSGTYPE_RESPONSE.equals(props.getType())) {
 					Context context = entry.getKey();
 					if (props.getContentType() != null) {

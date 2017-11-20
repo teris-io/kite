@@ -9,20 +9,15 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 
 public class Context implements Map<String, String> {
 
-	public static final String REQUEST_ID_KEY = "X-Request-ID";
-
 	public static final String CONTENT_TYPE_KEY = "Content-Type";
 
-
-	public static volatile Supplier<String> uniqueIdGenerator = () -> String.valueOf(System.nanoTime());
-
+	public static final String X_REQUEST_ID_KEY = "X-Request-Id";
 
 	public static final String DEFAULT_CONTENT_TYPE = "application/json";
 
@@ -41,7 +36,6 @@ public class Context implements Map<String, String> {
 		if (context != null) {
 			data.putAll(context);
 		}
-		put(REQUEST_ID_KEY, uniqueIdGenerator.get());
 		if (!containsKey(CONTENT_TYPE_KEY) || "".equals(data.get(CONTENT_TYPE_KEY).trim())) {
 			data.put(CONTENT_TYPE_KEY, DEFAULT_CONTENT_TYPE);
 		}

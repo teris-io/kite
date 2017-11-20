@@ -5,6 +5,7 @@
 package io.teris.rpc;
 
 import java.util.Map;
+import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 
 
@@ -58,6 +59,9 @@ public interface ServiceCreator {
 		 */
 		@Nonnull
 		Builder deserializers(@Nonnull Map<String, Deserializer> deserializerMap);
+
+		@Nonnull
+		Builder uidGenerator(@Nonnull Supplier<String> uidGenerator);
 
 		/**
 		 * Builds an instance of the client service factory.

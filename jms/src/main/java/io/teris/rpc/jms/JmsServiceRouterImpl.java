@@ -14,10 +14,12 @@ import javax.annotation.Nonnull;
 import javax.jms.BytesMessage;
 import javax.jms.Connection;
 import javax.jms.ConnectionFactory;
+import javax.jms.DeliveryMode;
 import javax.jms.Destination;
 import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.jms.MessageListener;
+import javax.jms.MessageProducer;
 import javax.jms.Session;
 import javax.jms.TextMessage;
 import javax.jms.Topic;
@@ -175,7 +177,7 @@ class JmsServiceRouterImpl implements JmsServiceRouter, JmsServiceRouter.Router 
 			try {
 				if (message.getJMSReplyTo() != null) {
 					TextMessage responseMessage = responseSession.createTextMessage(t.getMessage()); // FIXME message null
-					responseMessage.setJMSCorrelationID(message.getJMSMessageID());
+					responseMessage.setJMSCorrelationID(message.getJMSCorrelationID());
 					responseSession.createProducer(message.getJMSReplyTo()).send(responseMessage);
 					message.acknowledge();
 					log.debug("server sent response for {} to '{}'", responseMessage.getJMSCorrelationID(), message.getJMSReplyTo());
@@ -194,12 +196,14 @@ class JmsServiceRouterImpl implements JmsServiceRouter, JmsServiceRouter.Router 
 		private void respond(Message message, Context context, byte[] data) {
 			try {
 				BytesMessage responseMessage = responseSession.createBytesMessage();
-				responseMessage.setJMSCorrelationID(message.getJMSMessageID());
+				responseMessage.setJMSCorrelationID(message.getJMSCorrelationID());
 				responseMessage.writeBytes(data);
 				for (Entry<String, String> entry: context.entrySet()) {
 					responseMessage.setStringProperty(entry.getKey(), entry.getValue());
 				}
-				responseSession.createProducer(message.getJMSReplyTo()).send(responseMessage);
+				MessageProducer producer = responseSession.createProducer(message.getJMSReplyTo());
+				producer.setDeliveryMode(DeliveryMode.NON_PERSISTENT);
+				producer.send(responseMessage);
 				message.acknowledge();
 				log.debug("server sent response for {} to '{}'", responseMessage.getJMSCorrelationID(), message.getJMSReplyTo());
 			}

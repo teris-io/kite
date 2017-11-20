@@ -34,7 +34,7 @@ public abstract class AbstractInvocationTestsuite {
 
 	private final int nthreads = 5;
 
-	private final int nrequests = 20;
+	private final int nrequests = 200;
 
 	@Test
 	public void roundtrip_single_sync_success() {
@@ -111,7 +111,7 @@ public abstract class AbstractInvocationTestsuite {
 				return null;
 			});
 		}
-		ExecutorService pool = Executors.newFixedThreadPool(10);
+		ExecutorService pool = Executors.newFixedThreadPool(nthreads);
 		for (Future<Void> future: pool.invokeAll(callables)) {
 			future.get();
 		}
@@ -128,7 +128,7 @@ public abstract class AbstractInvocationTestsuite {
 				return null;
 			});
 		}
-		ExecutorService pool = Executors.newFixedThreadPool(10);
+		ExecutorService pool = Executors.newFixedThreadPool(nthreads);
 		for (Future<Void> future: pool.invokeAll(callables)) {
 			future.get();
 		}

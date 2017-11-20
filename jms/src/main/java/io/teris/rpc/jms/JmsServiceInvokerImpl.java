@@ -8,6 +8,7 @@ import java.util.AbstractMap.SimpleEntry;
 import java.util.Enumeration;
 import java.util.Map;
 import java.util.Map.Entry;
+import java.util.Objects;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nonnull;
@@ -58,7 +59,6 @@ class JmsServiceInvokerImpl implements JmsServiceInvoker {
 		requestTopic = requestSession.createTopic(topicName);
 		requestProducer = requestSession.createProducer(requestTopic);
 		requestProducer.setDeliveryMode(DeliveryMode.NON_PERSISTENT);
-		// producer.setTimeToLive(10000000);
 
 		responseSession = connection.createSession(false, Session.AUTO_ACKNOWLEDGE);
 		responseQueue = responseSession.createTemporaryQueue();
@@ -93,26 +93,29 @@ class JmsServiceInvokerImpl implements JmsServiceInvoker {
 	@Nonnull
 	@Override
 	public CompletableFuture<Entry<Context, byte[]>> call(@Nonnull String route, @Nonnull Context context, @Nullable byte[] outgoing) {
+		String correlationId = context.get(Context.X_REQUEST_ID_KEY);
 		CompletableFuture<Entry<Context, byte[]>> promise = new CompletableFuture<>();
 		try {
+			Objects.requireNonNull(correlationId, "Context contains no X-Request-Id");
 			BytesMessage message = requestSession.createBytesMessage();
-			if (outgoing != null) {
-				message.writeBytes(outgoing);
-			}
+			message.setJMSCorrelationID(correlationId);
+			message.setJMSReplyTo(responseQueue);
 			for (Entry<String, String> entry: context.entrySet()) {
 				message.setStringProperty(entry.getKey(), entry.getValue());
 			}
-			message.setJMSReplyTo(responseQueue);
-
+			if (outgoing != null) {
+				message.writeBytes(outgoing);
+			}
 			message.setStringProperty(JmsServiceRouterImpl.JMS_ROUTE, route);
 			message.setStringProperty(Context.CONTENT_TYPE_KEY, context.get(Context.CONTENT_TYPE_KEY));
-			synchronized (requestStore) {
-				requestProducer.send(requestTopic, message);
-				requestStore.put(message.getJMSMessageID(), new SimpleEntry<>(context, promise));
-			}
-			log.debug("client sent request {} to '{}'", message.getJMSMessageID(), requestTopic.getTopicName());
+			requestStore.put(correlationId, new SimpleEntry<>(context, promise));
+			requestProducer.send(requestTopic, message);
+			log.debug("client sent request {} to '{}'", correlationId, requestTopic.getTopicName());
 		}
-		catch (JMSException ex) {
+		catch (Exception ex) {
+			if (correlationId != null) {
+				requestStore.remove(correlationId);
+			}
 			promise.completeExceptionally(ex);
 		}
 		return promise;
@@ -136,10 +139,7 @@ class JmsServiceInvokerImpl implements JmsServiceInvoker {
 			try {
 				correlationId = message.getJMSCorrelationID();
 
-				Entry<Context, CompletableFuture<Entry<Context, byte[]>>> entry;
-				synchronized (requestStore) {
-					entry = requestStore.remove(correlationId);
-				}
+				Entry<Context, CompletableFuture<Entry<Context, byte[]>>> entry = requestStore.remove(correlationId);
 				if (entry == null || entry.getValue() == null) {
 					throw new JMSException("No request information found");
 				}
