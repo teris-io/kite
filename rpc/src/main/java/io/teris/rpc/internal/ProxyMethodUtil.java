@@ -100,6 +100,9 @@ public final class ProxyMethodUtil {
 			throw new InvocationException(message);
 		}
 		Context context = (Context) args[0];
+		if (method.getParameterCount() == 1) {
+			return new SimpleEntry<>(context, null);
+		}
 		LinkedHashMap<String, Serializable> payload = new LinkedHashMap<>();
 		for (int i = 1; i < method.getParameterCount(); i++) {
 			Name nameAnnot = method.getParameters()[i].getAnnotation(Name.class);

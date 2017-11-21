@@ -22,12 +22,11 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import io.teris.rpc.ServiceCreatorImpl.ClientServiceInvocationHandler;
 import io.teris.rpc.testfixture.TestDeserializer;
 import io.teris.rpc.testfixture.TestSerializer;
 
 
-public class ServiceCreatorImplTest {
+public class ServiceCreatorImplVoidReturnTest {
 
 	@Rule
 	public ExpectedException exception = ExpectedException.none();
@@ -53,7 +52,7 @@ public class ServiceCreatorImplTest {
 	@Test
 	public void voidSyncReturn_nullTransfer_success() {
 		ServiceInvoker requester = remoteCallerMock(null);
-		ClientServiceInvocationHandler handler = new ClientServiceInvocationHandler(requester, serializer, deserializerMap, uidGenerator);
+		ServiceInvocationHandlerImpl handler = new ServiceInvocationHandlerImpl(requester, serializer, deserializerMap, uidGenerator);
 		VoidService s = getProxy(VoidService.class, handler);
 		s.voidable(new Context());
 		verify(requester).call(any(), any(), any());
@@ -63,7 +62,7 @@ public class ServiceCreatorImplTest {
 	public void voidSyncReturn_nonNullTransfer_throws() {
 		// looks like accepted value for void (so it should actually fail trying to find deserializer)
 		ServiceInvoker requester = remoteCallerMock("{\"payload\": {}}".getBytes());
-		ClientServiceInvocationHandler handler = new ClientServiceInvocationHandler(requester, serializer, deserializerMap, uidGenerator);
+		ServiceInvocationHandlerImpl handler = new ServiceInvocationHandlerImpl(requester, serializer, deserializerMap, uidGenerator);
 		VoidService s = getProxy(VoidService.class, handler);
 		exception.expect(RuntimeException.class);
 		exception.expectMessage("GSON cannot handle void");
@@ -73,7 +72,7 @@ public class ServiceCreatorImplTest {
 	@Test
 	public void voidAsyncReturn_nullTransfer_success() throws Exception {
 		ServiceInvoker requester = remoteCallerMock(null);
-		ClientServiceInvocationHandler handler = new ClientServiceInvocationHandler(requester, serializer, deserializerMap, uidGenerator);
+		ServiceInvocationHandlerImpl handler = new ServiceInvocationHandlerImpl(requester, serializer, deserializerMap, uidGenerator);
 		VoidService s = getProxy(VoidService.class, handler);
 		s.voidableAsync(new Context()).get();
 		verify(requester).call(any(), any(), any());
@@ -82,7 +81,7 @@ public class ServiceCreatorImplTest {
 	@Test
 	public void voidAsyncReturn_nonNullTransfer_throws() throws Exception {
 		ServiceInvoker requester = remoteCallerMock("{\"payload\": {}}".getBytes());
-		ClientServiceInvocationHandler handler = new ClientServiceInvocationHandler(requester, serializer, deserializerMap, uidGenerator);
+		ServiceInvocationHandlerImpl handler = new ServiceInvocationHandlerImpl(requester, serializer, deserializerMap, uidGenerator);
 		VoidService s = getProxy(VoidService.class, handler);
 		CompletableFuture<Void> future = s.voidableAsync(new Context());
 		exception.expect(ExecutionException.class);
@@ -90,7 +89,7 @@ public class ServiceCreatorImplTest {
 		future.get();
 	}
 
-	private <S> S getProxy(Class<S> serviceClass, ClientServiceInvocationHandler handler) {
+	private <S> S getProxy(Class<S> serviceClass, ServiceInvocationHandlerImpl handler) {
 		@SuppressWarnings("unchecked")
 		S res = (S) Proxy.newProxyInstance(getClass().getClassLoader(), new Class[]{ serviceClass }, handler);
 		return res;
