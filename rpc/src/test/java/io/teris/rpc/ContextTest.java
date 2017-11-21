@@ -23,7 +23,9 @@ public class ContextTest {
 		Context context = new Context();
 		context.put("key1", "value1");
 		context.put("key2", "value2");
-		assertEquals(context, new Context(context));
+		Context copied = new Context(context);
+		assertEquals(context, copied);
+		assertEquals(context.hashCode(), copied.hashCode());
 	}
 
 	@Test
@@ -43,6 +45,5 @@ public class ContextTest {
 
 		context.clear();
 		assertTrue(context.isEmpty());
-
 	}
 }

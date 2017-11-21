@@ -23,6 +23,7 @@ import java.util.Map.Entry;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.Rule;
@@ -74,6 +75,7 @@ public class ServiceDispatcherTest {
 			.bind(OtherService.class, mock(OtherService.class))
 			.deserializer("text", serializer.deserializer())
 			.deserializers(deserializerMap)
+			.executors(Executors.newCachedThreadPool())
 			.build();
 	}
 
