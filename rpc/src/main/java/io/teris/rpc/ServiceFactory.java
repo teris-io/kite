@@ -9,23 +9,22 @@ import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 
 
-public interface ServiceCreator {
+public interface ServiceFactory {
 
 	/**
 	 * Creates a client service factory instance that can generate service proxies
 	 * bound to calls using the provided serialization and caller.
 	 *
 	 * @param serviceClass the interface class to route.
-	 * @throws InstantiationException when no instance can be constructes for any reason.
 	 */
 	@Nonnull
-	<S> S newInstance(@Nonnull Class<S> serviceClass) throws InvocationException;
+	<S> S newInstance(@Nonnull Class<S> serviceClass);
 
 	/**
 	 * @return a new instance of the client service factory builder.
 	 */
 	static Builder builder() {
-		return new ServiceCreatorImpl.BuilderImpl();
+		return new ServiceFactoryImpl.BuilderImpl();
 	}
 
 	/**
@@ -67,6 +66,6 @@ public interface ServiceCreator {
 		 * Builds an instance of the client service factory.
 		 */
 		@Nonnull
-		ServiceCreator build();
+		ServiceFactory build();
 	}
 }

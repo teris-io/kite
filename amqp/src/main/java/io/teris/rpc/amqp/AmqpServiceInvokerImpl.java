@@ -98,7 +98,7 @@ class AmqpServiceInvokerImpl implements AmqpServiceInvoker {
 		String correlationId = context.get(Context.X_REQUEST_ID_KEY);
 		CompletableFuture<Entry<Context, byte[]>> promise = new CompletableFuture<>();
 		try {
-			Objects.requireNonNull(correlationId, "Context contains no X-Request-Id");
+			Objects.requireNonNull(correlationId, "Context contains no " + Context.X_REQUEST_ID_KEY);
 			@SuppressWarnings("unchecked")
 			Map<String, Object> headers = (Map) context;
 			BasicProperties props = new BasicProperties.Builder()

@@ -25,14 +25,12 @@ import org.junit.rules.ExpectedException;
 import io.teris.rpc.testfixture.TestSerializer;
 
 
-public class ServiceDispatcherImplTest {
+public class ServiceDispatcherImplDeserializeTest {
 
 	@Rule
 	public ExpectedException exception = ExpectedException.none();
 
 	private static final TestSerializer serializer = new TestSerializer();
-
-	private static final Deserializer deserializer = serializer.deserializer();
 
 	private static final Context context = new Context();
 

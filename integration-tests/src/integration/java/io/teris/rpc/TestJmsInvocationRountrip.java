@@ -52,7 +52,7 @@ public class TestJmsInvocationRountrip extends AbstractInvocationTestsuite {
 			.build()
 			.start();
 
-		ServiceCreator creator = ServiceCreator.builder()
+		ServiceFactory creator = ServiceFactory.builder()
 			.serviceInvoker(invoker)
 			.serializer(GsonSerializer.builder().build())
 			.build();

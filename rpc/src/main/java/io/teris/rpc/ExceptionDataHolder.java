@@ -33,10 +33,6 @@ public class ExceptionDataHolder implements Serializable {
 		stackTrace = ex.getStackTrace();
 	}
 
-	ExceptionDataHolder(@Nonnull Throwable t) {
-		this(new InvocationException("Unexpected invocation exception", t));
-	}
-
 	@Nonnull
 	RuntimeException exception() {
 		if (BusinessException.class.getSimpleName().equalsIgnoreCase(type)) {

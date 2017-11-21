@@ -37,11 +37,10 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.junit.rules.ExpectedException;
 
-import io.teris.rpc.internal.ResponseFields;
 import io.teris.rpc.testfixture.TestSerializer;
 
 
-public class ServiceInvocationHandlerImplTest {
+public class ServiceProxyInvocationHandlerTest {
 
 	private static final TestSerializer serializer = new TestSerializer();
 
@@ -54,36 +53,36 @@ public class ServiceInvocationHandlerImplTest {
 	public void constructor_missingServiceInvoker_throws() {
 		exception.expect(NullPointerException.class);
 		exception.expectMessage("Service invoker is required");
-		new ServiceInvocationHandlerImpl(null, null, Collections.emptyMap(), null);
+		new ServiceProxyInvocationHandler(null, null, Collections.emptyMap(), null);
 	}
 
 	@Test
 	public void constructor_missingSerializer_throws() {
 		exception.expect(NullPointerException.class);
 		exception.expectMessage("Serializer is required");
-		new ServiceInvocationHandlerImpl(mock(ServiceInvoker.class), null, Collections.emptyMap(), null);
+		new ServiceProxyInvocationHandler(mock(ServiceInvoker.class), null, Collections.emptyMap(), null);
 	}
 
 	@Test
 	public void constructor_missingUidGenerator_throws() {
 		exception.expect(NullPointerException.class);
 		exception.expectMessage("Unique Id generator is required");
-		new ServiceInvocationHandlerImpl(mock(ServiceInvoker.class), serializer, Collections.emptyMap(), null);
+		new ServiceProxyInvocationHandler(mock(ServiceInvoker.class), serializer, Collections.emptyMap(), null);
 	}
 
 	@Test
 	public void constructor_missingDeserializerMap_success() {
-		new ServiceInvocationHandlerImpl(mock(ServiceInvoker.class), serializer, null, uidGenerator);
+		new ServiceProxyInvocationHandler(mock(ServiceInvoker.class), serializer, null, uidGenerator);
 	}
 
 	@Test
 	public void constructor_withDeserializerMap_success() {
 		Map<String, Deserializer> deserializerMap = new HashMap<>();
 		deserializerMap.put(serializer.contentType(), serializer.deserializer());
-		new ServiceInvocationHandlerImpl(mock(ServiceInvoker.class), serializer, deserializerMap, uidGenerator);
+		new ServiceProxyInvocationHandler(mock(ServiceInvoker.class), serializer, deserializerMap, uidGenerator);
 	}
 
-	@Service(replace = "io.teris.rpc.ServiceInvocationHandlerImplTest.Some")
+	@Service(replace = "io.teris.rpc.ServiceProxyInvocationHandlerTest.Some")
 	public interface SomeService {
 
 		CompletableFuture<String> asyncMethod(Context context);
@@ -107,7 +106,7 @@ public class ServiceInvocationHandlerImplTest {
 		doReturn(CompletableFuture.completedFuture(payload)).when(invoker).call(anyString(), any(), isNull());
 
 		Method method = SomeService.class.getDeclaredMethod("asyncMethod", Context.class);
-		InvocationHandler handler = new ServiceInvocationHandlerImpl(invoker,
+		InvocationHandler handler = new ServiceProxyInvocationHandler(invoker,
 			serializer, null, uidGenerator);
 		Object promise = handler.invoke(mock(SomeService.class), method, new Object[]{ new Context() });
 		assertTrue(promise instanceof CompletableFuture);
@@ -120,7 +119,7 @@ public class ServiceInvocationHandlerImplTest {
 		ServiceInvoker invoker = mock(ServiceInvoker.class);
 
 		Method method = SomeService.class.getDeclaredMethod("brokenMethod", Context.class);
-		InvocationHandler handler = new ServiceInvocationHandlerImpl(invoker,
+		InvocationHandler handler = new ServiceProxyInvocationHandler(invoker,
 			serializer, null, uidGenerator);
 		Object promise = handler.invoke(mock(SomeService.class), method, new Object[]{ new Context() });
 		assertTrue(promise instanceof CompletableFuture);
@@ -138,7 +137,7 @@ public class ServiceInvocationHandlerImplTest {
 		})).when(invoker).call(anyString(), any(), isNull());
 
 		Method method = SomeService.class.getDeclaredMethod("asyncMethod", Context.class);
-		InvocationHandler handler = new ServiceInvocationHandlerImpl(invoker,
+		InvocationHandler handler = new ServiceProxyInvocationHandler(invoker,
 			serializer, null, uidGenerator);
 		Object promise = handler.invoke(mock(SomeService.class), method, new Object[]{ new Context() });
 		assertTrue(promise instanceof CompletableFuture);
@@ -155,7 +154,7 @@ public class ServiceInvocationHandlerImplTest {
 		doReturn(CompletableFuture.completedFuture(payload)).when(invoker).call(anyString(), any(), any(byte[].class));
 
 		Method method = SomeService.class.getDeclaredMethod("sqrt", Context.class, Double.class);
-		InvocationHandler handler = new ServiceInvocationHandlerImpl(invoker,
+		InvocationHandler handler = new ServiceProxyInvocationHandler(invoker,
 			serializer, null, uidGenerator);
 		Object res = handler.invoke(mock(SomeService.class), method, new Object[]{ new Context(), Double.valueOf(10.139) });
 		assertTrue(res instanceof Double);
@@ -172,7 +171,7 @@ public class ServiceInvocationHandlerImplTest {
 		}).when(invoker).call(anyString(), any(), any(byte[].class));
 
 		Method method = SomeService.class.getDeclaredMethod("sqrt", Context.class, Double.class);
-		InvocationHandler handler = new ServiceInvocationHandlerImpl(invoker,
+		InvocationHandler handler = new ServiceProxyInvocationHandler(invoker,
 			serializer, null, uidGenerator);
 
 		exception.expect(IllegalArgumentException.class);
@@ -188,7 +187,7 @@ public class ServiceInvocationHandlerImplTest {
 		})).when(invoker).call(anyString(), any(), any(byte[].class));
 
 		Method method = SomeService.class.getDeclaredMethod("sqrt", Context.class, Double.class);
-		InvocationHandler handler = new ServiceInvocationHandlerImpl(invoker,
+		InvocationHandler handler = new ServiceProxyInvocationHandler(invoker,
 			serializer, null, uidGenerator);
 
 		exception.expect(InvocationException.class);
@@ -206,7 +205,7 @@ public class ServiceInvocationHandlerImplTest {
 		}).when(invoker).call(anyString(), any(), any(byte[].class));
 
 		Method method = SomeService.class.getDeclaredMethod("sqrt", Context.class, Double.class);
-		InvocationHandler handler = new ServiceInvocationHandlerImpl(invoker,
+		InvocationHandler handler = new ServiceProxyInvocationHandler(invoker,
 			serializer, null, uidGenerator);
 
 		exception.expect(InvocationException.class);
@@ -221,7 +220,7 @@ public class ServiceInvocationHandlerImplTest {
 		doReturn(CompletableFuture.completedFuture(payload)).when(invoker).call(anyString(), any(), isNull());
 
 		Method method = SomeService.class.getDeclaredMethod("asyncMethod", Context.class);
-		ServiceInvocationHandlerImpl handler = new ServiceInvocationHandlerImpl(invoker,
+		ServiceProxyInvocationHandler handler = new ServiceProxyInvocationHandler(invoker,
 			serializer, null, uidGenerator);
 		CompletableFuture<String> promise = handler.callRemote(method, new Object[]{ new Context() });
 		assertEquals("hello", promise.get(5, TimeUnit.SECONDS));
@@ -234,7 +233,7 @@ public class ServiceInvocationHandlerImplTest {
 		doReturn(CompletableFuture.completedFuture(payload)).when(invoker).call(anyString(), any(), any(byte[].class));
 
 		Method method = SomeService.class.getDeclaredMethod("sqrt", Context.class, Double.class);
-		ServiceInvocationHandlerImpl handler = new ServiceInvocationHandlerImpl(invoker,
+		ServiceProxyInvocationHandler handler = new ServiceProxyInvocationHandler(invoker,
 			serializer, null, uidGenerator);
 		CompletableFuture<Double> promise = handler.callRemote(method, new Object[]{ new Context(), Double.valueOf(10.139) });
 		assertEquals(3.14159, promise.get(5, TimeUnit.SECONDS).doubleValue(), 0.001);
@@ -243,7 +242,7 @@ public class ServiceInvocationHandlerImplTest {
 	@Test
 	public void callRemote_wrongReturn_completesWithInvocationException() throws Throwable {
 		Method method = SomeService.class.getDeclaredMethod("brokenReturn", Context.class);
-		ServiceInvocationHandlerImpl handler = new ServiceInvocationHandlerImpl(mock(ServiceInvoker.class),
+		ServiceProxyInvocationHandler handler = new ServiceProxyInvocationHandler(mock(ServiceInvoker.class),
 			serializer, null, uidGenerator);
 
 		exception.expect(ExecutionException.class);
@@ -254,7 +253,7 @@ public class ServiceInvocationHandlerImplTest {
 	@Test
 	public void callRemote_wrongArgs_completesWithInvocationException() throws Throwable {
 		Method method = SomeService.class.getDeclaredMethod("brokenArg", Context.class, Object.class);
-		ServiceInvocationHandlerImpl handler = new ServiceInvocationHandlerImpl(mock(ServiceInvoker.class),
+		ServiceProxyInvocationHandler handler = new ServiceProxyInvocationHandler(mock(ServiceInvoker.class),
 			serializer, null, uidGenerator);
 
 		exception.expect(ExecutionException.class);
@@ -265,7 +264,7 @@ public class ServiceInvocationHandlerImplTest {
 	@Test
 	public void callRemote_wrongRoute_completesWithInvocationException() throws Throwable {
 		Method method = SomeService.class.getDeclaredMethod("brokenRoute", Context.class);
-		ServiceInvocationHandlerImpl handler = new ServiceInvocationHandlerImpl(mock(ServiceInvoker.class),
+		ServiceProxyInvocationHandler handler = new ServiceProxyInvocationHandler(mock(ServiceInvoker.class),
 			serializer, null, uidGenerator);
 
 		exception.expect(ExecutionException.class);
@@ -280,7 +279,7 @@ public class ServiceInvocationHandlerImplTest {
 		doReturn(CompletableFuture.completedFuture(payload)).when(invoker).call(anyString(), any(), isNull());
 
 		Method method = SomeService.class.getDeclaredMethod("asyncMethod", Context.class);
-		ServiceInvocationHandlerImpl handler = new ServiceInvocationHandlerImpl(invoker,
+		ServiceProxyInvocationHandler handler = new ServiceProxyInvocationHandler(invoker,
 			serializer, null, uidGenerator);
 		handler.callRemote(method, new Object[]{ new Context() }).get(5, TimeUnit.SECONDS);
 		verify(invoker).call(anyString(), any(), isNull());
@@ -293,7 +292,7 @@ public class ServiceInvocationHandlerImplTest {
 		doReturn(CompletableFuture.completedFuture(payload)).when(invoker).call(anyString(), any(), any(byte[].class));
 
 		Method method = SomeService.class.getDeclaredMethod("sqrt", Context.class, Double.class);
-		ServiceInvocationHandlerImpl handler = new ServiceInvocationHandlerImpl(invoker,
+		ServiceProxyInvocationHandler handler = new ServiceProxyInvocationHandler(invoker,
 			serializer, null, uidGenerator);
 		handler.callRemote(method, new Object[]{ new Context(), Double.valueOf(10.139) }).get(5, TimeUnit.SECONDS);
 		verify(invoker).call(anyString(), any(), eq("{\"a\":10.139}".getBytes()));
@@ -306,7 +305,7 @@ public class ServiceInvocationHandlerImplTest {
 		doReturn(CompletableFuture.completedFuture(payload)).when(invoker).call(anyString(), any(), any(byte[].class));
 
 		Method method = SomeService.class.getDeclaredMethod("sqrt", Context.class, Double.class);
-		ServiceInvocationHandlerImpl handler = new ServiceInvocationHandlerImpl(invoker,
+		ServiceProxyInvocationHandler handler = new ServiceProxyInvocationHandler(invoker,
 			serializer, null, uidGenerator);
 		handler.callRemote(method, new Object[]{ new Context(), Double.valueOf(10.139) }).get(5, TimeUnit.SECONDS);
 		verify(invoker).call(eq("sqrt"), any(), any());
@@ -319,14 +318,14 @@ public class ServiceInvocationHandlerImplTest {
 		ServiceInvoker invoker = mock(ServiceInvoker.class);
 		doAnswer(invocation -> {
 			Context requestContext = invocation.getArgument(1);
-			assertEquals(1, context.size());
+			assertEquals(0, context.size());
 			assertEquals(2, requestContext.size());
 			assertTrue(requestContext.containsKey(Context.X_REQUEST_ID_KEY));
 			return CompletableFuture.completedFuture(payload);
 		}).when(invoker).call(anyString(), any(), any(byte[].class));
 
 		Method method = SomeService.class.getDeclaredMethod("sqrt", Context.class, Double.class);
-		ServiceInvocationHandlerImpl handler = new ServiceInvocationHandlerImpl(invoker,
+		ServiceProxyInvocationHandler handler = new ServiceProxyInvocationHandler(invoker,
 			serializer, null, uidGenerator);
 		handler.callRemote(method, new Object[]{ context, Double.valueOf(10.139) }).get(5, TimeUnit.SECONDS);
 		verify(invoker).call(anyString(), any(), any());
@@ -347,7 +346,7 @@ public class ServiceInvocationHandlerImplTest {
 		}).when(invoker).call(anyString(), any(), any(byte[].class));
 
 		Method method = SomeService.class.getDeclaredMethod("sqrt", Context.class, Double.class);
-		ServiceInvocationHandlerImpl handler = new ServiceInvocationHandlerImpl(invoker,
+		ServiceProxyInvocationHandler handler = new ServiceProxyInvocationHandler(invoker,
 			serializer, null, uidGenerator);
 		handler.callRemote(method, new Object[]{ context, Double.valueOf(10.139) }).get(5, TimeUnit.SECONDS);
 		verify(invoker).call(anyString(), any(), any());
@@ -370,7 +369,7 @@ public class ServiceInvocationHandlerImplTest {
 		}).when(invoker).call(anyString(), any(), any(byte[].class));
 
 		Method method = SomeService.class.getDeclaredMethod("sqrt", Context.class, Double.class);
-		ServiceInvocationHandlerImpl handler = new ServiceInvocationHandlerImpl(invoker,
+		ServiceProxyInvocationHandler handler = new ServiceProxyInvocationHandler(invoker,
 			serializer, null, uidGenerator);
 		handler.callRemote(method, new Object[]{ context, Double.valueOf(10.139) }).get(5, TimeUnit.SECONDS);
 		verify(invoker).call(anyString(), any(), any());
@@ -388,7 +387,7 @@ public class ServiceInvocationHandlerImplTest {
 
 
 		Method method = SomeService.class.getDeclaredMethod("sqrt", Context.class, Double.class);
-		ServiceInvocationHandlerImpl handler = new ServiceInvocationHandlerImpl(invoker,
+		ServiceProxyInvocationHandler handler = new ServiceProxyInvocationHandler(invoker,
 			mockedSerializer, null, uidGenerator);
 
 		exception.expect(ExecutionException.class);
@@ -408,7 +407,7 @@ public class ServiceInvocationHandlerImplTest {
 		}).when(invoker).call(anyString(), any(), any(byte[].class));
 
 		Method method = SomeService.class.getDeclaredMethod("sqrt", Context.class, Double.class);
-		ServiceInvocationHandlerImpl handler = new ServiceInvocationHandlerImpl(invoker,
+		ServiceProxyInvocationHandler handler = new ServiceProxyInvocationHandler(invoker,
 			serializer, null, uidGenerator);
 		handler.callRemote(method, new Object[]{context, Double.valueOf(10.139) }).get(5, TimeUnit.SECONDS);
 		assertEquals("value", context.get("key"));
@@ -426,7 +425,7 @@ public class ServiceInvocationHandlerImplTest {
 		}).when(invoker).call(anyString(), any(), any(byte[].class));
 
 		Method method = SomeService.class.getDeclaredMethod("sqrt", Context.class, Double.class);
-		ServiceInvocationHandlerImpl handler = new ServiceInvocationHandlerImpl(invoker,
+		ServiceProxyInvocationHandler handler = new ServiceProxyInvocationHandler(invoker,
 			serializer, null, uidGenerator);
 		try {
 			handler.callRemote(method, new Object[]{context, Double.valueOf(10.139)}).get(5, TimeUnit.SECONDS);
@@ -445,7 +444,7 @@ public class ServiceInvocationHandlerImplTest {
 		doReturn(CompletableFuture.completedFuture(payload)).when(invoker).call(anyString(), any(), any(byte[].class));
 
 		Method method = SomeService.class.getDeclaredMethod("sqrt", Context.class, Double.class);
-		ServiceInvocationHandlerImpl handler = new ServiceInvocationHandlerImpl(invoker,
+		ServiceProxyInvocationHandler handler = new ServiceProxyInvocationHandler(invoker,
 			serializer, null, uidGenerator);
 		Serializable res = handler.callRemote(method, new Object[]{context, Double.valueOf(10.139)}).get(5, TimeUnit.SECONDS);
 		assertNull(res);
@@ -459,7 +458,7 @@ public class ServiceInvocationHandlerImplTest {
 		doReturn(CompletableFuture.completedFuture(payload)).when(invoker).call(anyString(), any(), any(byte[].class));
 
 		Method method = SomeService.class.getDeclaredMethod("sqrt", Context.class, Double.class);
-		ServiceInvocationHandlerImpl handler = new ServiceInvocationHandlerImpl(invoker,
+		ServiceProxyInvocationHandler handler = new ServiceProxyInvocationHandler(invoker,
 			serializer, null, uidGenerator);
 		Serializable res = handler.callRemote(method, new Object[]{context, Double.valueOf(10.139)}).get(5, TimeUnit.SECONDS);
 		assertNull(res);
@@ -478,7 +477,7 @@ public class ServiceInvocationHandlerImplTest {
 		doReturn(CompletableFuture.completedFuture(payload)).when(invoker).call(anyString(), any(), any(byte[].class));
 
 		Method method = SomeService.class.getDeclaredMethod("sqrt", Context.class, Double.class);
-		ServiceInvocationHandlerImpl handler = new ServiceInvocationHandlerImpl(invoker,
+		ServiceProxyInvocationHandler handler = new ServiceProxyInvocationHandler(invoker,
 			serializer, null, uidGenerator);
 		exception.expect(ExecutionException.class);
 		exception.expectMessage("InvocationException: boom");
@@ -502,7 +501,7 @@ public class ServiceInvocationHandlerImplTest {
 		Map<String, Deserializer> deserializerMap = new HashMap<>();
 		deserializerMap.put("text", serializer.deserializer());
 		Method method = SomeService.class.getDeclaredMethod("sqrt", Context.class, Double.class);
-		ServiceInvocationHandlerImpl handler = new ServiceInvocationHandlerImpl(invoker,
+		ServiceProxyInvocationHandler handler = new ServiceProxyInvocationHandler(invoker,
 			mockedSerializer, deserializerMap, uidGenerator);
 		Double res = (Double) handler.callRemote(method, new Object[]{context, Double.valueOf(10.139)}).get(5, TimeUnit.SECONDS);
 		assertEquals(3.14159, res.doubleValue(), 0.01);

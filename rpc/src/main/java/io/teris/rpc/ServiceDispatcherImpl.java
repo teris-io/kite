@@ -26,22 +26,9 @@ import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import io.teris.rpc.internal.ProxyMethodUtil;
-import io.teris.rpc.internal.ResponseFields;
 
 
 class ServiceDispatcherImpl implements ServiceDispatcher {
-
-	private final Map<String, Entry<Object, Method>> endpoints = new HashMap<>();
-
-	private final Serializer serializer;
-
-	private final Map<String, Deserializer> deserializerMap = new HashMap<>();
-
-	ServiceDispatcherImpl(Map<String, Entry<Object, Method>> endpoints, Serializer serializer, Map<String, Deserializer> deserializerMap) {
-		this.endpoints.putAll(endpoints);
-		this.serializer = serializer;
-		this.deserializerMap.putAll(deserializerMap);
-	}
 
 	static class BuilderImpl implements ServiceDispatcher.Builder {
 
@@ -85,9 +72,20 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 		@Nonnull
 		@Override
 		public ServiceDispatcher build() {
-			Objects.requireNonNull(serializer, "Missing serializer");
 			return new ServiceDispatcherImpl(endpoints, serializer, deserializerMap);
 		}
+	}
+
+	private final Map<String, Entry<Object, Method>> endpoints = new HashMap<>();
+
+	private final Serializer serializer;
+
+	private final Map<String, Deserializer> deserializerMap = new HashMap<>();
+
+	ServiceDispatcherImpl(Map<String, Entry<Object, Method>> endpoints, Serializer serializer, Map<String, Deserializer> deserializerMap) {
+		this.endpoints.putAll(endpoints);
+		this.serializer = Objects.requireNonNull(serializer, "Serializer is required");
+		this.deserializerMap.putAll(deserializerMap);
 	}
 
 	@Nonnull
@@ -100,7 +98,6 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 	@Nonnull
 	@Override
 	public CompletableFuture<Entry<Context, byte[]>> call(@Nonnull String route, @Nonnull Context context, @Nullable byte[] incomingData) {
-
 		CompletableFuture<Object[]> incoming;
 		Entry<Object, Method> endpoint = endpoints.get(route);
 		if (endpoint != null && endpoint.getKey() != null && endpoint.getValue() != null) {
@@ -126,13 +123,9 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 								return obj;
 							});
 					}
-					catch (InvocationTargetException ex) {
-						return CompletableFuture.supplyAsync(() -> new BusinessException(ex.getCause()));
-					}
-					catch (IllegalAccessException ex) {
+					catch (InvocationTargetException | IllegalAccessException ex) { // IAE unlikely by design
 						return CompletableFuture.supplyAsync(() -> {
-							throw new InvocationException(String.format("Cannot invoke %s.%s",
-								method.getDeclaringClass().getSimpleName(), method.getName()), ex.getCause());
+							throw new BusinessException(ex.getCause() != null ? ex.getCause() : ex);
 						});
 					}
 				}
@@ -140,12 +133,8 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 					try {
 						return method.invoke(service, args);
 					}
-					catch (InvocationTargetException ex) {
-						throw new BusinessException(ex.getCause());
-					}
-					catch (IllegalAccessException ex) {
-						throw new InvocationException(String.format("Cannot invoke %s.%s",
-							method.getDeclaringClass().getSimpleName(), method.getName()), ex.getCause());
+					catch (InvocationTargetException | IllegalAccessException ex) { // IAE unlikely by design
+						throw new BusinessException(ex.getCause() != null ? ex.getCause() : ex);
 					}
 				});
 			})
@@ -162,31 +151,24 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 					res.put(ResponseFields.EXCEPTION, new ExceptionDataHolder((BusinessException) t));
 					res.put(ResponseFields.ERROR_MESSAGE, t.getMessage() != null ? t.getMessage() : t.toString());
 				}
-				else if (t != null && t.getCause() != null) {
-					Throwable cause = t.getCause();
-					res.put(ResponseFields.EXCEPTION, new ExceptionDataHolder(cause));
-					res.put(ResponseFields.ERROR_MESSAGE, cause.getMessage() != null ? cause.getMessage() : cause.toString());
-				}
 				else if (t != null) {
-					res.put(ResponseFields.EXCEPTION, new ExceptionDataHolder(t));
-					res.put(ResponseFields.ERROR_MESSAGE, t.getMessage() != null ? t.getMessage() : t.toString());
+					throw t instanceof RuntimeException ? (RuntimeException) t : new RuntimeException(t);
 				}
-				else if (obj == null || void.class.isAssignableFrom(obj.getClass())
+				else if (obj == null
+					|| void.class.isAssignableFrom(obj.getClass())
 					|| Void.class.isAssignableFrom(obj.getClass())) {
 					res.put(ResponseFields.PAYLOAD, null);
 				}
-				else if (obj instanceof Serializable) {
-					res.put(ResponseFields.PAYLOAD, (Serializable) obj);
-				}
 				else {
-					String message = "Returned value is neither Serializable nor void";
-					res.put(ResponseFields.EXCEPTION, new ExceptionDataHolder(new InvocationException(message)));
-					res.put(ResponseFields.ERROR_MESSAGE, message);
+					res.put(ResponseFields.PAYLOAD, (Serializable) obj);
 				}
 				return res;
 			})
 			.thenCompose(serializer::serialize)
-			.thenApply((ser) -> new SimpleEntry<>(context, ser));
+			.thenApply((ser) -> {
+				context.put(Context.CONTENT_TYPE_KEY, serializer.contentType());
+				return new SimpleEntry<>(context, ser);
+			});
 	}
 
 	private static class Typedef extends HashMap<String, Serializable> {}

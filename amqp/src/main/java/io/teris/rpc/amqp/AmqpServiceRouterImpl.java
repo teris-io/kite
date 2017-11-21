@@ -183,7 +183,7 @@ class AmqpServiceRouterImpl implements AmqpServiceRouter, AmqpServiceRouter.Rout
 				String replyTo = props.getReplyTo();
 				props = new BasicProperties.Builder()
 					.correlationId(props.getCorrelationId())
-					.contentType(context.getOrDefault(Context.CONTENT_TYPE_KEY, Context.DEFAULT_CONTENT_TYPE))
+					.contentType(context.get(Context.CONTENT_TYPE_KEY))
 					.contentEncoding("UTF-8")
 					.headers(headers)
 					.type(AmqpServiceInvokerImpl.MSGTYPE_RESPONSE)

@@ -5,8 +5,8 @@
 package io.teris.rpc;
 
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nonnull;
@@ -18,8 +18,6 @@ public class Context implements Map<String, String> {
 	public static final String CONTENT_TYPE_KEY = "Content-Type";
 
 	public static final String X_REQUEST_ID_KEY = "X-Request-Id";
-
-	public static final String DEFAULT_CONTENT_TYPE = "application/json";
 
 	private final ConcurrentHashMap<String, String> data = new ConcurrentHashMap<>();
 
@@ -35,9 +33,6 @@ public class Context implements Map<String, String> {
 	public Context(@Nullable Map<String, String> context) {
 		if (context != null) {
 			data.putAll(context);
-		}
-		if (!containsKey(CONTENT_TYPE_KEY) || "".equals(data.get(CONTENT_TYPE_KEY).trim())) {
-			data.put(CONTENT_TYPE_KEY, DEFAULT_CONTENT_TYPE);
 		}
 	}
 
@@ -104,8 +99,16 @@ public class Context implements Map<String, String> {
 		return data.entrySet();
 	}
 
-	@Nonnull
-	public HashMap<String, String> hashMap() {
-		return new HashMap<>(data);
+	@Override
+	public boolean equals(Object o) {
+		if (this == o) return true;
+		if (o == null || getClass() != o.getClass()) return false;
+		Context context = (Context) o;
+		return Objects.equals(data, context.data);
+	}
+
+	@Override
+	public int hashCode() {
+		return Objects.hash(data);
 	}
 }

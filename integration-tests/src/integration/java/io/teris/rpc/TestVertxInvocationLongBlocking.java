@@ -6,17 +6,23 @@ package io.teris.rpc;
 
 import java.io.IOException;
 import java.net.ServerSocket;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.concurrent.Callable;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
+import org.junit.Ignore;
+import org.junit.Test;
 
 import io.teris.rpc.http.vertx.VertxServiceInvoker;
 import io.teris.rpc.http.vertx.VertxServiceRouter;
-import io.teris.rpc.impl.AsyncServiceImpl;
-import io.teris.rpc.impl.SyncServiceImpl;
-import io.teris.rpc.impl.ThrowingServiceImpl;
 import io.teris.rpc.serialization.json.GsonSerializer;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpClient;
@@ -26,9 +32,36 @@ import io.vertx.core.http.HttpServerOptions;
 import io.vertx.ext.web.Router;
 
 
-public class TestVertxInvocationRountrip extends AbstractInvocationTestsuite {
+public class TestVertxInvocationLongBlocking {
+
+	@Service
+	public interface LongBlocking {
+		Boolean doit(Context context, @Name("instance") Integer instance, @Name("seconds") Integer seconds) throws InterruptedException;
+	}
+
+	static class LongBlockingImpl implements LongBlocking {
+
+		@Override
+		public Boolean doit(Context context, Integer instance, Integer seconds) {
+			long start = System.currentTimeMillis();
+			for (int i = 0; i < seconds.intValue(); i++) {
+				try {
+					Thread.sleep(1000);
+				}
+				catch (InterruptedException ex) {
+					// ignore
+				}
+				System.out.println(String.format("Elapsed %d: %f", instance, Double.valueOf((System.currentTimeMillis() - start) * 1e-3)));
+			}
+			return Boolean.TRUE;
+		}
+	}
+
 
 	private static HttpServer server;
+
+	private static LongBlocking service;
+
 
 	@BeforeClass
 	public static void init() throws Exception {
@@ -56,27 +89,18 @@ public class TestVertxInvocationRountrip extends AbstractInvocationTestsuite {
 			.serializer(GsonSerializer.builder().build())
 			.build();
 
-		syncService = creator.newInstance(SyncService.class);
-		asyncService = creator.newInstance(AsyncService.class);
-		throwingService = creator.newInstance(ThrowingService.class);
+		service = creator.newInstance(LongBlocking.class);
 
 
 		Router router = Router.router(vertx);
 
-		ServiceDispatcher dispatcher1 = ServiceDispatcher.builder()
+		ServiceDispatcher dispatcher = ServiceDispatcher.builder()
 			.serializer(GsonSerializer.builder().build())
-			.bind(SyncService.class, new SyncServiceImpl("1"))
-			.bind(AsyncService.class, new AsyncServiceImpl("2"))
-			.build();
-
-		ServiceDispatcher dispatcher2 = ServiceDispatcher.builder()
-			.serializer(GsonSerializer.builder().build())
-			.bind(ThrowingService.class, new ThrowingServiceImpl("3"))
+			.bind(LongBlocking.class, new LongBlockingImpl())
 			.build();
 
 		VertxServiceRouter.builder(router).build()
-			.route(dispatcher1)
-			.route(dispatcher2);
+			.route(dispatcher);
 
 		CompletableFuture<HttpServer> promise = new CompletableFuture<>();
 		CompletableFuture.runAsync(() ->
@@ -96,5 +120,22 @@ public class TestVertxInvocationRountrip extends AbstractInvocationTestsuite {
 	@AfterClass
 	public static void teardown() {
 		server.close();
+	}
+
+	@Ignore
+	@Test
+	public void invoke_sync_blocking() throws InterruptedException, ExecutionException {
+		List<Callable<Void>> callables = new ArrayList<>();
+		for (int i = 0; i < 50; i++) {
+			Integer j = Integer.valueOf(i);
+			callables.add(() -> {
+				service.doit(new Context(), j, Integer.valueOf(10));
+				return null;
+			});
+		}
+		ExecutorService executors = Executors.newFixedThreadPool(50);
+		for (Future<Void> future: executors.invokeAll(callables)) {
+			future.get();
+		}
 	}
 }

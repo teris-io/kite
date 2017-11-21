@@ -19,7 +19,6 @@ import java.util.concurrent.Future;
 import java.util.function.Supplier;
 
 import io.teris.rpc.internal.ProxyMethodUtil;
-import io.teris.rpc.internal.ResponseFields;
 
 
 /**
@@ -35,7 +34,7 @@ import io.teris.rpc.internal.ResponseFields;
  * In case the service method returns a future, the execution is wrapped into a
  * completable future, exceptional if required, and no exceptions will be thrown directly.
  */
-class ServiceInvocationHandlerImpl implements InvocationHandler {
+class ServiceProxyInvocationHandler implements InvocationHandler {
 
 	private final ServiceInvoker serviceInvoker;
 
@@ -45,7 +44,7 @@ class ServiceInvocationHandlerImpl implements InvocationHandler {
 
 	private final Supplier<String> uidGenerator;
 
-	ServiceInvocationHandlerImpl(ServiceInvoker serviceInvoker, Serializer serializer, Map<String, Deserializer> deserializerMap, Supplier<String> uidGenerator) {
+	ServiceProxyInvocationHandler(ServiceInvoker serviceInvoker, Serializer serializer, Map<String, Deserializer> deserializerMap, Supplier<String> uidGenerator) {
 		this.serviceInvoker = Objects.requireNonNull(serviceInvoker, "Service invoker is required");
 		this.serializer = Objects.requireNonNull(serializer, "Serializer is required");
 		this.uidGenerator = Objects.requireNonNull(uidGenerator, "Unique Id generator is required");
