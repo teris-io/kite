@@ -81,7 +81,7 @@ public class ServiceDispatcherTest {
 	public void constructor_serializerNull_throws() {
 		exception.expect(NullPointerException.class);
 		exception.expectMessage("Serializer is required");
-		new ServiceDispatcherImpl(Collections.emptyMap(), null, Collections.emptyMap());
+		new ServiceDispatcherImpl(Collections.emptyMap(), null, Collections.emptyMap(), null);
 	}
 
 	@Test
@@ -161,7 +161,7 @@ public class ServiceDispatcherTest {
 
 	@Test
 	public void call_noRoute_exceptionWrappedIntoExDataHolder() throws Exception {
-		ServiceDispatcher dispatcher = new ServiceDispatcherImpl(Collections.emptyMap(), new TestSerializer(), Collections.emptyMap());
+		ServiceDispatcher dispatcher = new ServiceDispatcherImpl(Collections.emptyMap(), new TestSerializer(), Collections.emptyMap(), null);
 		CompletableFuture<Entry<Context, byte[]>> promise =	dispatcher.call("some.route", new Context(), new byte[]{});
 		Entry<Context, byte[]> res = promise.get(5, TimeUnit.SECONDS);
 		Response response = deserializer.deserialize(res.getValue(), Response.class).get(5, TimeUnit.SECONDS);

@@ -21,6 +21,8 @@ import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -37,6 +39,8 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 		private Serializer serializer = null;
 
 		private final Map<String, Deserializer> deserializerMap = new HashMap<>();
+
+		private ExecutorService executors = null;
 
 		@Nonnull
 		@Override
@@ -60,6 +64,13 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 		}
 
 		@Nonnull
+		@Override
+		public Builder executors(@Nonnull ExecutorService executors) {
+			this.executors = executors;
+			return this;
+		}
+
+		@Nonnull
 		public <S> Builder bind(@Nonnull Class<S> serviceClass, @Nonnull S service) throws InvocationException {
 			ServiceValidator.validate(serviceClass);
 			for (Method method : serviceClass.getDeclaredMethods()) {
@@ -72,7 +83,7 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 		@Nonnull
 		@Override
 		public ServiceDispatcher build() {
-			return new ServiceDispatcherImpl(endpoints, serializer, deserializerMap);
+			return new ServiceDispatcherImpl(endpoints, serializer, deserializerMap, executors);
 		}
 	}
 
@@ -82,10 +93,13 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 
 	private final Map<String, Deserializer> deserializerMap = new HashMap<>();
 
-	ServiceDispatcherImpl(Map<String, Entry<Object, Method>> endpoints, Serializer serializer, Map<String, Deserializer> deserializerMap) {
+	private final ExecutorService executors;
+
+	ServiceDispatcherImpl(Map<String, Entry<Object, Method>> endpoints, Serializer serializer, Map<String, Deserializer> deserializerMap, ExecutorService executors) {
 		this.endpoints.putAll(endpoints);
 		this.serializer = Objects.requireNonNull(serializer, "Serializer is required");
 		this.deserializerMap.putAll(deserializerMap);
+		this.executors = executors != null ? executors : Executors.newCachedThreadPool();
 	}
 
 	@Nonnull
@@ -136,7 +150,7 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 					catch (InvocationTargetException | IllegalAccessException ex) { // IAE unlikely by design
 						throw new BusinessException(ex.getCause() != null ? ex.getCause() : ex);
 					}
-				});
+				}, executors);
 			})
 			.handle((obj, t) -> {
 				HashMap<String, Serializable> res = new HashMap<>();

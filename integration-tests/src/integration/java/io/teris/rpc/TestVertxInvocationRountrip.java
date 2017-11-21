@@ -47,7 +47,10 @@ public class TestVertxInvocationRountrip extends AbstractInvocationTestsuite {
 
 		Vertx vertx = Vertx.vertx();
 
-		HttpClient httpClient = vertx.createHttpClient(new HttpClientOptions().setDefaultHost("localhost").setDefaultPort(port));
+		HttpClient httpClient = vertx.createHttpClient(new HttpClientOptions()
+			.setDefaultHost("localhost")
+			.setDefaultPort(port)
+			.setMaxPoolSize(200));
 
 		VertxServiceInvoker invoker = VertxServiceInvoker.builder(httpClient).build();
 

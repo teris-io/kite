@@ -8,6 +8,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -46,6 +47,9 @@ public interface ServiceDispatcher {
 		 */
 		@Nonnull
 		Builder deserializers(@Nonnull Map<String, Deserializer> deserializerMap);
+
+		@Nonnull
+		Builder executors(@Nonnull ExecutorService executors);
 
 		@Nonnull
 		<S> Builder bind(@Nonnull Class<S> serviceClass, @Nonnull S service) throws InvocationException;

@@ -80,7 +80,10 @@ public class TestVertxInvocationLongBlocking {
 
 		Vertx vertx = Vertx.vertx();
 
-		HttpClient httpClient = vertx.createHttpClient(new HttpClientOptions().setDefaultHost("localhost").setDefaultPort(port));
+		HttpClient httpClient = vertx.createHttpClient(new HttpClientOptions()
+			.setDefaultHost("localhost")
+			.setDefaultPort(port)
+			.setMaxPoolSize(50));
 
 		VertxServiceInvoker invoker = VertxServiceInvoker.builder(httpClient).build();
 
@@ -129,11 +132,11 @@ public class TestVertxInvocationLongBlocking {
 		for (int i = 0; i < 50; i++) {
 			Integer j = Integer.valueOf(i);
 			callables.add(() -> {
-				service.doit(new Context(), j, Integer.valueOf(10));
+				service.doit(new Context(), j, Integer.valueOf(120));
 				return null;
 			});
 		}
-		ExecutorService executors = Executors.newFixedThreadPool(50);
+		ExecutorService executors = Executors.newCachedThreadPool();
 		for (Future<Void> future: executors.invokeAll(callables)) {
 			future.get();
 		}
