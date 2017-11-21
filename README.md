@@ -2,7 +2,7 @@
 [![Code Coverage](https://img.shields.io/codecov/c/github/teris-io/rpc.svg)](https://codecov.io/gh/teris-io/rpc)
 
 
-# rpc
+# rpc: an (opinionated) library for service based RPC and public APIs in Java
 
 The `rpc` library aims to simplify the definition and implementation of public APIs and
 their use for RPC. It draws a clear cut between the invocation, serialization and transport
@@ -38,15 +38,17 @@ are not supported. All method arguments after the context, must be annotated wit
 
 The following defines a service with two endpoints, a synchronous and an asynchronous ones:
 
-    package com.company.api;
+```java
+package com.company.api;
 
-    @Service(replace="com.company")
-    public interface DataService {
+@Service(replace="com.company")
+public interface DataService {
 
-        CompletableFuture<Void> upload(Context context, @Name("data") HashMap<String, Double> data);
+    CompletableFuture<Void> upload(Context context, @Name("data") HashMap<String, Double> data);
 
-        Double download(Context context, @Name("key") String key);
-    }
+    Double download(Context context, @Name("key") String key);
+}
+```
 
 Each service method receives an independent route composed, by default, from the package
 name, service class name (w/o the Service suffix) and a method name, all lower case and
@@ -65,7 +67,7 @@ will validate method/service declaration before the invocation and at the time o
 s service implementation. 
 
 
-## Invocation
+## Client-side invocation
 
 Service proxy instances are obtained from an instance of `ServiceFactory`,
 which is parametrized using an instance of `Serializer` that transfers method arguments
@@ -77,100 +79,162 @@ deserializer is provided by the registered serializer.
 
 `ServiceFactory` instances can be constructed for example in the following manner:
 
-	ServiceFactory factory = ServiceFactory.builder()
-		.serviceInvoker(invoker)
-		.serializer(serializer)
-		.build();
+```java
+ServiceFactory factory = ServiceFactory.builder()
+	.serviceInvoker(invoker)
+	.serializer(serializer)
+	.build();
+```
 
 Service proxies are then obtained by calling `newInstance` on the factory:
 
-    DataService dataService = factory.newInstance(DataService.class);
+```java
+DataService dataService = factory.newInstance(DataService.class);
+
+Double value = dataService.download(new Context(), "key");
+```
+
+## Serialization
+
+Serialization and deserialization are intergral parts of the remote invocation workflow.
+The client serializes outgoing requests and deserializes incoming responses while the server
+deserializes incoming requests and serializes outgoing responses.
+
+Serialization is pluggable into the client and server sides via instances implementing the
+`io.teris.rpc.Serializer`
+
+```java
+@Nonnull
+<CT extends Serializable> CompletableFuture<byte[]> serialize(@Nonnull CT value);
+```
+
+and `io.teris.rpc.Deserializer` interfaces
+
+```java
+@Nonnull
+<CT extends Serializable> CompletableFuture<CT> deserialize(@Nonnull byte[] data, @Nonnull Class<CT> clazz);
+
+@Nonnull
+<CT extends Serializable> CompletableFuture<CT> deserialize(@Nonnull byte[] data, @Nonnull Type type);
+```
+
+When sending out a message (client request or server response), the serializer on the
+sending side defines and sets the content type of the data to transfer. This value is read
+from the headers on the receiving side and a matching deserializer is used to
+deserialize the content (in case no matching one found, the deserializer of the registered
+serializer is tried).
+
+The package provides JSON serializer and deserializer in `io.teris.rpc:serialization-json`
+based on GSON and released along with the core library. The serializer and deserializer
+are configurable with further GSON options beyond default.
+
+*Note*: Custom deserializers must satisfy a requirements to deliver a deserializable slice
+of the original or transformed byte array for every explicit `Serializable` parameter.
+Due to the necessity to dynamically put heterogeneous method arguments together, the server
+side will first deserialize the data into a `HashMap<String, Serializable>`and then, in a
+second iteration, it will use the same deserializer to process byte arrays behind each
+`Serializable` value into a concrete type as declared on the method.
 
 ## Transport
 
-Transport implementations implement the `ServiceInvoker` interface for the client side and
+Transport layers implement the `ServiceInvoker` interface for the client side and
 `ServiceDispatcher` for the server side. Both interfaces, although not related via any
-parent-child relation, provide the following method that is central for the bi-directional
+parent-child relation, provide the following same method that is central for the bi-directional
 data flow:
 
 	CompletableFuture<Entry<Context, byte[]>> call(@Nonnull String route, @Nonnull Context context, @Nullable byte[] data);
 
-An invocating proxy first composes the method route. Then it copies the context and puts a
-new unique request/correlation Id along with the serializer content type there. Finally, it
-collects method arguments, serializes them into a byte array of data and passes all of the
-above into the transport layer behind a `ServiceInvoker` instance. It then asynchronously
-waits for the completion of the returned future by the server side.
+Invoking proxies first compose the method route; then copy the context and put new unique
+request Id and the correct content type there; finally, collect method arguments and serialize
+them into byte arrays. The three values are then passed into an instance of the above
+`ServiceInvoker` interface implementation. This performs an asynchronous network transport
+of the data and waits for the completion of the returned future by the server side.
 
-The transport layer transfers the data and context in form of request/message headers to
-the destination route (which for protocol comptibility may be for example transformed into
-a URI on a given host/port). The server side transport implementation then receives the
-request/message and passes all three values to an instance of `ServiceDispatcher` that,
-based on the route, finds a service implementation instance and method to call, deserializes
-the data correspondingly, creates a new context from the headers and invokes the method.
+The transport layer transfers the data and context (in form of request/message headers) to
+the destination route (which for protocol comptibility may be transformed into a URI on a
+given host/port or anything else). The server side transport implementation receives the
+request/message, passes its route, headers and data into an instance of the `ServiceDispatcher`
+implementation. Based on the route, it finds the matching service implementation instance and
+the method to call, deserializes the data correspondingly, creates a new context from the
+headers and invokes the method. The same asynchronous process is repeated in reverse for the
+response.
 
-The package provides transport layer implementations for HTTP using `vert.x`, JMS using
-`ActiveMQ` and AMQP using `RabbitMQ`. It further provides a default JSON serializer
-based on the GSON library. Using the `vert.x` HTTP implementation and the GSON serializer,
-the fully configured client-side service factory that will invoke service methods over
-HTTP can be instantiated like this (adding further optional parameters for completeness):
+The package provides the following three transport layer implementations:
 
-	HttpClient httpClient = Vertx.vertx().createHttpClient(new HttpClientOptions()
-		.setDefaultHost("localhost")
-		.setDefaultPort(8080)
-		.setMaxPoolSize(50));
+* HTTP(s) POST using `vert.x` in `io.teris.rpc:vertx` (released together with the core)
+* JMS using `ActiveMQ` in `io.teris.rpc:jms` (not yet finalized, not released, can be used from source only)
+* AMQP using `RabbitMQ` in `io.teris.rpc:amqp` (not yet finalized, not released, can be used from source only)
 
-	ServiceInvoker invoker = VertxServiceInvoker.builder(httpClient).build();
+Using the `vert.x` HTTP implementation and the GSON serializer, the fully configured client-side
+service factory that will invoke service methods over HTTP on a corresponding HTTP server
+can be instantiated as follows (adding further optional parameters for completeness):
 
-	Serializer serializer = GsonSerializer.builder().build();
+```java
+Vertx vertx = Vertx.vertx();
 
-	Supplier<String> uidGenerator = () -> UUID.randomUUID().toString();
+HttpClient httpClient = vertx.createHttpClient(new HttpClientOptions()
+	.setDefaultHost("localhost")
+	.setDefaultPort(8080)
+	.setMaxPoolSize(50));
 
-	ServiceFactory factory = ServiceFactory.builder()
-		.serviceInvoker(invoker)
-		.serializer(serializer)
-		.uidGenerator(uidGenerator)
-		.build();
+ServiceInvoker invoker = VertxServiceInvoker.builder(httpClient).build();
 
-On the server side, one simply needs to register service implementing instances with an
-instance of `ServiceDispatcher` using a matching protocol and a matching (de)serializer.
-For `vert.x` HTTP and GSON, the registration code invoked at the start of the server
-application can look like this:
+Serializer serializer = GsonSerializer.builder().build();
 
-	Vertx vertx = Vertx.vertx();
+Supplier<String> uidGenerator = () -> UUID.randomUUID().toString();
 
-	Serializer serializer = GsonSerializer.builder().build();
+ServiceFactory factory = ServiceFactory.builder()
+	.serviceInvoker(invoker)
+	.serializer(serializer)
+	.uidGenerator(uidGenerator) // optional (default same as above)
+	.deserialier("application/json", serializer.deserializer()) // optional
+	.build();
+```
 
-	ServiceDispatcher dispatcher = ServiceDispatcher.builder()
-		.serializer(serializer)
-		.bind(DataService.class, new DataServiceImpl(dataServiceDependency))
-		.bind(OtherService.class, new OtherServiceImpl(otherServiceDependency))
-		.build();
+On the server side, one needs to register services along with implementing instances in
+an instance of the `ServiceDispatcher` implementation. Initializing an `VertxServiceRouter`
+instance with the dispatcher instance and a `vert.x` router will register HTTP POST
+endpoint for all services and their methods on every dispatcher used:
 
-	Router router = Router.router(vertx);
+```java
+Serializer serializer = GsonSerializer.builder().build();
 
-	VertxServiceRouter.builder(router).build()
-		.preconditioner(authHandler)
-		.route(dispatcher);
+ServiceDispatcher dispatcher = ServiceDispatcher.builder()
+	.serializer(serializer)
+	.bind(DataService.class, new DataServiceImpl(dataServiceDependency))
+	.bind(OtherService.class, new OtherServiceImpl(otherServiceDependency))
+	.build();
 
-	vertx.createHttpServer(httpServerOptions)
-		.requestHandler(router::accept)
-		.listen());
+Vertx vertx = Vertx.vertx();
+Router router = Router.router(vertx);
 
-Any exceptions during the invocation process will be wrapped into `io.teris.rpc.InvocationException`
-or `io.teris.rpc.BusinessExcpeption` when the exception happens during invoking the actual
-service method. References to the cause are dropped from the transport while their original
+VertxServiceRouter.builder(router).build()
+	.preconditioner(authHandler)
+	.route(dispatcher);
+
+vertx.createHttpServer(httpServerOptions)
+	.requestHandler(router::accept)
+	.listen());
+```
+
+Exception thrown during the invocation process are wrapped into `io.teris.rpc.InvocationException`
+or `io.teris.rpc.BusinessExcpeption` in case the exception occurs when invoking the actual
+service method. References to the cause are dropped from the transport, however, their original
 stacktraces are preserved. Exception data will be delivered serialized in the response payload.
-The only exception is when the serialization of an (exceptional or normal) response on the
-server side causes an exception itself. This will be delivered to the client by different
-means depending on the transport resuling in the future completed exceptionally on the
-transport layer interface. Exceptions are then recreated and rethrown on the client.
+The only exception from this case is when the serialization of an (exceptional or normal) response on the
+server side throws itself an exception. This exception will be delivered to the client by different
+means depending on the transport. In the `vert.x` implementation it will result in the server
+500 HTTP code and a text error message. Any middleware (preprocessor) exception should
+result in a similar behavior. The resuling future is then completed exceptionally on the transport
+layer interface.
 
-It is essential to understand that _no checked_ exceptions will cross the remote invocation
-boundary and all exceptions will descend from the `InvocationException` or `BusinessException`.
-This is true even for the case when the service declares and throws a checked exception. The
-reason for this is to guarantee that exceptions are always deserializable on the client side!
+It is essential to note that _no checked_ exceptions will cross the remote invocation
+boundary and all runtime exceptions will descend from `InvocationException` or `BusinessException`.
+This is true even for the case when the service declares and throws an exception of a
+particular type. The reason for this is to guarantee that exceptions are always deserializable
+on the client side!
 
-### Serialization and public APIs
+## Public APIs
 
 Using the provided GSON-based serializer and the `vert.x` HTTP transport layer implementation,
 every service becomes an API that can be easily consumed. For example, using the server side
@@ -207,14 +271,6 @@ Service requests that contain no arguments beside `Context` will be performed wi
 request body. Service responses that respond to `void` or `CompletableFuture<Void>` and contain no
 exception will contain an empty response body. Both are treated as normal, non-erroneous cases.
 
-### Further notes
-
-When implementing custom de-serializers, it is a requirements that for target types specified
-explicitly as `Serializable`, a byte array slice of the (original or not, but deserializeable)
-data is returned. Due to the nature of putting dynamic method arguments together, the
-server side will first deserialize into a `HashMap<String, Serializable>`and then, in a second
-round, it will deserialize a byte array behind each `Serializable` into a concrete type as
-declared on the method.
 
 ### License and copyright
 
