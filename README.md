@@ -2,7 +2,7 @@
 [![Code Coverage](https://img.shields.io/codecov/c/github/teris-io/rpc.svg)](https://codecov.io/gh/teris-io/rpc)
 
 
-# rpc: an (opinionated) library for service based RPC and public APIs in Java
+# rpc - service-based RPC and public APIs in Java
 
 The `rpc` library aims to simplify the definition and implementation of public APIs and
 their use for RPC. It draws a clear cut between the invocation, serialization and transport
@@ -16,7 +16,7 @@ it implements the dispatching mechanism that takes incoming requests from the bo
 transport layer, passes the data through a content-type specific bound deserializer and
 dispatches to a service implementation.
 
-# Obtaining the library
+## Obtaining the library
 
 Get it with gradle:
 
@@ -29,6 +29,22 @@ Get it with gradle:
     }
 
 Or download the jars as a zip [rpc-0.1.0.zip](https://github.com/teris-io/rpc/files/1497699/rpc-0.1.0.zip)
+
+## Building and testing
+
+In order to run all integration tests one needs to have `rabbitmq` broker running on `localhost:5672`
+using the default guest account. The easiest way to get it deployed is by using an official `rabbitmq`
+docker image:
+
+	docker run -it -p 5672:5672 rabbitmq:alpine
+
+Vert.x and ActiveMQ tests will run their server side deployments from within the tests. With rabbit deployed
+one can run the full build with unit and integration tests and a deployment to the local `~/.m2` maven
+repository using:
+
+	./gradlew build test integration coverage install
+
+Without rabbit installed, add `--continue` to continue upon encounterring a failed test.
 
 
 ## Service declaration
