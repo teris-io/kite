@@ -16,6 +16,21 @@ it implements the dispatching mechanism that takes incoming requests from the bo
 transport layer, passes the data through a content-type specific bound deserializer and
 dispatches to a service implementation.
 
+# Obtaining the library
+
+Get it with gradle:
+
+    repositories.maven { url "https://dl.bintray.com/teris/maven" }
+
+    dependencies {
+      compile("io.teris.rpc:rpc:0.1.0")
+      compile("io.teris.rpc:serialization-json:0.1.0")
+      compile("io.teris.rpc:vertx:0.1.0")
+    }
+
+Or download the jars as a zip [rpc-0.1.0.zip](https://github.com/teris-io/rpc/files/1497699/rpc-0.1.0.zip)
+
+
 ## Service declaration
 
 APIs are defined by declaring public interfaces annotated with `@io.teris.rpc.Service`. Service
