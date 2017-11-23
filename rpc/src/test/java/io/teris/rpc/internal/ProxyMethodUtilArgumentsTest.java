@@ -66,6 +66,8 @@ public class ProxyMethodUtilArgumentsTest {
 
 		void contextOnly(Context context);
 
+		void primitive(Context context, @Name("i") int i, @Name("d") double d, @Name("b") byte b, @Name("l") long l);
+
 		void contextReturned(Context context, @Name("value") Integer value);
 
 		void varargsOnly(Context context, @Name("ints") Integer... ints);
@@ -201,6 +203,19 @@ public class ProxyMethodUtilArgumentsTest {
 		LinkedHashMap<String, Serializable> actual = done.get().getValue();
 		assertEquals(1, actual.size());
 		assertTrue(Arrays.equals(new Integer[]{Integer.valueOf(25), Integer.valueOf(36)}, (Integer[]) actual.get("ints")));
+	}
+
+	@Test
+	public void arguments_primitives_success() throws Exception {
+		CompletableFuture<Entry<Context, LinkedHashMap<String, Serializable>>> done = new CompletableFuture<>();
+		ArgsVariationService s = Proxier.get(ArgsVariationService.class, done);
+		s.primitive(context, 1345, 2.0, (byte) 25, 45634564356L);
+		LinkedHashMap<String, Serializable> actual = done.get().getValue();
+		assertEquals(4, actual.size());
+		assertEquals(1345, (int) actual.get("i"));
+		assertEquals(2.0, (double) actual.get("d"), 0.0001);
+		assertEquals((byte) 25, (byte) actual.get("b"));
+		assertEquals(45634564356L, (long) actual.get("l"));
 	}
 
 	@Test

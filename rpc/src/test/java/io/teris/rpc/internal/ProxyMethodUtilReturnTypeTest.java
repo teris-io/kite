@@ -46,6 +46,8 @@ public class ProxyMethodUtilReturnTypeTest {
 
 		Integer serializable();
 
+		long primitive();
+
 		CompletableFuture<Integer> serializableAsync();
 
 		Object nonSerializable();
@@ -80,6 +82,13 @@ public class ProxyMethodUtilReturnTypeTest {
 		Integer data = Integer.valueOf(25);
 		NonGenericsReturnValueService s = Proxier.get(NonGenericsReturnValueService.class, data);
 		assertEquals(25, s.serializable().intValue());
+	}
+
+	@Test
+	public void return_primitive_success() {
+		long data = 2456456L;
+		NonGenericsReturnValueService s = Proxier.get(NonGenericsReturnValueService.class, data);
+		assertEquals(2456456L, s.primitive());
 	}
 
 	@Test

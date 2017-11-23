@@ -145,7 +145,7 @@ public final class ProxyMethodUtil {
 			if (clazz.isArray()) {
 				validateArgumentType(method, clazz.getComponentType());
 			}
-			else if (!Serializable.class.isAssignableFrom(clazz)) {
+			else if (!Serializable.class.isAssignableFrom(clazz) && !clazz.isPrimitive() && !clazz.isEnum()) {
 				String message = String.format("After %s all parameter types in %s.%s must implement Serializable",
 					Context.class.getSimpleName(), method.getDeclaringClass().getSimpleName(), method.getName());
 				throw new InvocationException(message);
@@ -184,7 +184,8 @@ public final class ProxyMethodUtil {
 			else {
 				boolean isVoid = void.class.isAssignableFrom(clazz) || Void.class.isAssignableFrom(clazz);
 				boolean isSerializable = Serializable.class.isAssignableFrom(clazz);
-				if (!isVoid && !isSerializable) {
+				boolean isPrimitive = clazz.isPrimitive() || clazz.isEnum();
+				if (!isVoid && !isSerializable && !isPrimitive) {
 					String message = String.format("Return type of %s.%s must implement Serializable or be void/Void (or a CompletableFuture thereof)",
 						method.getDeclaringClass().getSimpleName(), method.getName());
 					throw new InvocationException(message);

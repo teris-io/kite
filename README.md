@@ -20,15 +20,16 @@ dispatches to a service implementation.
 
 Get it with gradle:
 
-    repositories.maven { url "https://dl.bintray.com/teris/maven" }
+    repositories.jcenter()
 
     dependencies {
-      compile("io.teris.rpc:rpc:0.1.0")
-      compile("io.teris.rpc:serialization-json:0.1.0")
-      compile("io.teris.rpc:vertx:0.1.0")
+      compile("io.teris.rpc:rpc:+")
+      compile("io.teris.rpc:serialization-json:+")
+      compile("io.teris.rpc:vertx:+")
     }
 
-Or download the jars as a zip [rpc-0.1.0.zip](https://github.com/teris-io/rpc/files/1497699/rpc-0.1.0.zip)
+Or download the `rpc`, `vertx` and `serialization-json` jars directly from the
+[jcenter repository](http://jcenter.bintray.com/io/teris/rpc/).
 
 ## Building and testing
 
