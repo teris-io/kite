@@ -47,6 +47,9 @@ class VertxDispatchingHandler extends RoutingBase implements Handler<RoutingCont
 		for (String headerKey : httpContext.request().headers().names()) {
 			incomingContext.put(headerKey, httpContext.request().getHeader(headerKey));
 		}
+		for (Entry<String, Object> entry : httpContext.data().entrySet()) {
+			incomingContext.put(entry.getKey(), String.valueOf(entry.getValue()));
+		}
 
 		byte[] incomingData = httpContext.getBody() != null ? httpContext.getBody().getBytes() : null;
 		String corrId = incomingContext.get(Context.X_REQUEST_ID_KEY);
