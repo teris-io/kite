@@ -17,7 +17,7 @@ public class Context implements Map<String, String> {
 
 	public static final String CONTENT_TYPE_KEY = "Content-Type";
 
-	public static final String X_REQUEST_ID_KEY = "X-Request-Id";
+	public static final String X_REQUEST_ID_KEY = "X-Request-ID";
 
 	private final ConcurrentHashMap<String, String> data = new ConcurrentHashMap<>();
 
