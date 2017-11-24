@@ -167,7 +167,7 @@ side will first deserialize the data into a `HashMap<String, Serializable>`and t
 second iteration, it will use the same deserializer to process byte arrays behind each
 `Serializable` value into a concrete type as declared on the method.
 
-## Transport
+## Transport and server-side invocation
 
 Transport layers implement the `ServiceInvoker` interface for the client side and
 `ServiceDispatcher` for the server side. Both interfaces, although not related via any
@@ -265,6 +265,19 @@ boundary and all runtime exceptions will descend from `InvocationException` or `
 This is true even for the case when the service declares and throws an exception of a
 particular type. The reason for this is to guarantee that exceptions are always deserializable
 on the client side!
+
+## Generic preprocessing (and authentication)
+
+The service dispatcher allows for registration of a series of preprocessors that are executed
+(asynchronously) before dispatching to the actual service implementation. Preprocessors are
+functions that satisfy the following declaration:
+
+	BiFunction<Context, byte[], CompletableFuture<Context>>
+
+Each preprocessor asynchronously receives the context from the previous iteration and can
+use its values and the original data to make generate new values for the context and or
+validate permissions.
+
 
 ## Public APIs
 

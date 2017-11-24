@@ -23,6 +23,8 @@ import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.BiFunction;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -35,6 +37,8 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 	static class BuilderImpl implements ServiceDispatcher.Builder {
 
 		final Map<String, Entry<Object, Method>> endpoints = new HashMap<>();
+
+		final List<BiFunction<Context, byte[], CompletableFuture<Context>>> preprocessors = new ArrayList<>();
 
 		private Serializer serializer = null;
 
@@ -71,6 +75,13 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 		}
 
 		@Nonnull
+		@Override
+		public Builder preprocessor(BiFunction<Context, byte[], CompletableFuture<Context>> preprocessor) {
+			this.preprocessors.add(preprocessor);
+			return this;
+		}
+
+		@Nonnull
 		public <S> Builder bind(@Nonnull Class<S> serviceClass, @Nonnull S service) throws InvocationException {
 			ServiceValidator.validate(serviceClass);
 			for (Method method : serviceClass.getDeclaredMethods()) {
@@ -83,11 +94,13 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 		@Nonnull
 		@Override
 		public ServiceDispatcher build() {
-			return new ServiceDispatcherImpl(endpoints, serializer, deserializerMap, executors);
+			return new ServiceDispatcherImpl(endpoints, preprocessors, serializer, deserializerMap, executors);
 		}
 	}
 
 	private final Map<String, Entry<Object, Method>> endpoints = new HashMap<>();
+
+	private final List<BiFunction<Context, byte[], CompletableFuture<Context>>> preprocessors = new ArrayList<>();
 
 	private final Serializer serializer;
 
@@ -95,8 +108,9 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 
 	private final ExecutorService executors;
 
-	ServiceDispatcherImpl(Map<String, Entry<Object, Method>> endpoints, Serializer serializer, Map<String, Deserializer> deserializerMap, ExecutorService executors) {
+	ServiceDispatcherImpl(Map<String, Entry<Object, Method>> endpoints, List<BiFunction<Context, byte[], CompletableFuture<Context>>> preprocessors, Serializer serializer, Map<String, Deserializer> deserializerMap, ExecutorService executors) {
 		this.endpoints.putAll(endpoints);
+		this.preprocessors.addAll(preprocessors);
 		this.serializer = Objects.requireNonNull(serializer, "Serializer is required");
 		this.deserializerMap.putAll(deserializerMap);
 		this.executors = executors != null ? executors : Executors.newCachedThreadPool();
@@ -112,18 +126,22 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 	@Nonnull
 	@Override
 	public CompletableFuture<Entry<Context, byte[]>> call(@Nonnull String route, @Nonnull Context context, @Nullable byte[] incomingData) {
-		CompletableFuture<Object[]> incoming;
-		Entry<Object, Method> endpoint = endpoints.get(route);
-		if (endpoint != null && endpoint.getKey() != null && endpoint.getValue() != null) {
-			incoming = deserialize(context, endpoint.getValue(), incomingData);
-		}
-		else {
-			incoming = CompletableFuture.supplyAsync(() -> {
-				throw new InvocationException(String.format("No route to %s", route));
-			});
+
+		CompletableFuture<Context> promise = CompletableFuture.completedFuture(context);
+		for (BiFunction<Context, byte[], CompletableFuture<Context>> preprocessor : preprocessors) {
+			promise = promise.thenCompose((c) -> preprocessor.apply(c, incomingData));
 		}
 
-		return incoming
+		AtomicReference<Context> contextHolder = new AtomicReference<>(context);
+		Entry<Object, Method> endpoint = endpoints.get(route);
+		return promise
+			.thenCompose((ctx) -> {
+				contextHolder.set(ctx);
+				if (endpoint != null && endpoint.getKey() != null && endpoint.getValue() != null) {
+					return deserialize(ctx, endpoint.getValue(), incomingData);
+				}
+				throw new InvocationException(String.format("No route to %s", route));
+			})
 			.thenCompose((Object[] args) -> {
 				Method method = Objects.requireNonNull(endpoint).getValue();
 				Object service = endpoint.getKey();
@@ -180,8 +198,9 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 			})
 			.thenCompose(serializer::serialize)
 			.thenApply((ser) -> {
-				context.put(Context.CONTENT_TYPE_KEY, serializer.contentType());
-				return new SimpleEntry<>(context, ser);
+				Context ctx = contextHolder.get();
+				ctx.put(Context.CONTENT_TYPE_KEY, serializer.contentType());
+				return new SimpleEntry<>(ctx, ser);
 			});
 	}
 

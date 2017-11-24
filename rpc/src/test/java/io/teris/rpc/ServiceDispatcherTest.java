@@ -25,6 +25,7 @@ import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiFunction;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -83,7 +84,7 @@ public class ServiceDispatcherTest {
 	public void constructor_serializerNull_throws() {
 		exception.expect(NullPointerException.class);
 		exception.expectMessage("Serializer is required");
-		new ServiceDispatcherImpl(Collections.emptyMap(), null, Collections.emptyMap(), null);
+		new ServiceDispatcherImpl(Collections.emptyMap(), Collections.emptyList(), null, Collections.emptyMap(), null);
 	}
 
 	@Test
@@ -134,6 +135,68 @@ public class ServiceDispatcherTest {
 	}
 
 	@Test
+	public void call_preprocessorsUpdateContext_success() throws Exception {
+		SomeService serviceImpl = mock(SomeService.class);
+		doReturn("boo").when(serviceImpl).sync(any(), any());
+
+		BiFunction<Context, byte[], CompletableFuture<Context>> prep1 = (context, bytes) -> {
+			context = new Context(context);
+			context.put("propX", "25");
+			return CompletableFuture.completedFuture(context);
+		};
+
+		BiFunction<Context, byte[], CompletableFuture<Context>> prep2 = (context, bytes) -> {
+			context = new Context(context);
+			context.put("propX", String.valueOf(Integer.valueOf(context.get("propX")).intValue() + 32));
+			return CompletableFuture.completedFuture(context);
+		};
+
+		ServiceDispatcher dispatcher = ServiceDispatcher.builder()
+			.serializer(serializer)
+			.preprocessor(prep1)
+			.preprocessor(prep2)
+			.bind(SomeService.class, serviceImpl)
+			.build();
+
+		CompletableFuture<Entry<Context, byte[]>> promise =	dispatcher.call("some.sync", new Context(), "{\"value\":\"foo\"}".getBytes());
+		Entry<Context, byte[]> res = promise.get(5, TimeUnit.SECONDS);
+		Response response = deserializer.deserialize(res.getValue(), Response.class).get(5, TimeUnit.SECONDS);
+		assertNull(response.exception);
+		assertTrue(response.payload instanceof byte[]);
+		assertEquals("\"boo\"", new String((byte[]) response.payload));
+		assertEquals("57", res.getKey().get("propX"));
+	}
+
+	@Test
+	public void call_preprocessorException_exceptionWrapped() throws Exception {
+		SomeService serviceImpl = mock(SomeService.class);
+		doReturn("boo").when(serviceImpl).sync(any(), any());
+
+		BiFunction<Context, byte[], CompletableFuture<Context>> prep1 = (context, bytes) -> {
+			context = new Context(context);
+			context.put("propX", "25");
+			return CompletableFuture.completedFuture(context);
+		};
+
+		BiFunction<Context, byte[], CompletableFuture<Context>> prep2 = (context, bytes) -> {
+			throw new InvocationException("boom");
+		};
+
+		ServiceDispatcher dispatcher = ServiceDispatcher.builder()
+			.serializer(serializer)
+			.preprocessor(prep1)
+			.preprocessor(prep2)
+			.bind(SomeService.class, serviceImpl)
+			.build();
+
+		CompletableFuture<Entry<Context, byte[]>> promise =	dispatcher.call("some.sync", new Context(), "{\"value\":\"foo\"}".getBytes());
+		Entry<Context, byte[]> res = promise.get(5, TimeUnit.SECONDS);
+		Response response = deserializer.deserialize(res.getValue(), Response.class).get(5, TimeUnit.SECONDS);
+		assertNull(response.payload);
+		assertEquals("boom", response.exception.message);
+	}
+
+	@Test
 	public void call_void_success() throws Exception {
 		ServiceDispatcher dispatcher = ServiceDispatcher.builder()
 			.serializer(serializer)
@@ -163,7 +226,7 @@ public class ServiceDispatcherTest {
 
 	@Test
 	public void call_noRoute_exceptionWrappedIntoExDataHolder() throws Exception {
-		ServiceDispatcher dispatcher = new ServiceDispatcherImpl(Collections.emptyMap(), new TestSerializer(), Collections.emptyMap(), null);
+		ServiceDispatcher dispatcher = new ServiceDispatcherImpl(Collections.emptyMap(), Collections.emptyList(), new TestSerializer(), Collections.emptyMap(), null);
 		CompletableFuture<Entry<Context, byte[]>> promise =	dispatcher.call("some.route", new Context(), new byte[]{});
 		Entry<Context, byte[]> res = promise.get(5, TimeUnit.SECONDS);
 		Response response = deserializer.deserialize(res.getValue(), Response.class).get(5, TimeUnit.SECONDS);
