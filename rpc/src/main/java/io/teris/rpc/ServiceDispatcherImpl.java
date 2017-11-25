@@ -38,7 +38,7 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 
 		final Map<String, Entry<Object, Method>> endpoints = new HashMap<>();
 
-		final List<BiFunction<Context, byte[], CompletableFuture<Context>>> preprocessors = new ArrayList<>();
+		final List<BiFunction<Context, Entry<String, byte[]>, CompletableFuture<Context>>> preprocessors = new ArrayList<>();
 
 		private Serializer serializer = null;
 
@@ -76,7 +76,7 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 
 		@Nonnull
 		@Override
-		public Builder preprocessor(BiFunction<Context, byte[], CompletableFuture<Context>> preprocessor) {
+		public Builder preprocessor(BiFunction<Context, Entry<String, byte[]>, CompletableFuture<Context>> preprocessor) {
 			this.preprocessors.add(preprocessor);
 			return this;
 		}
@@ -100,7 +100,7 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 
 	private final Map<String, Entry<Object, Method>> endpoints = new HashMap<>();
 
-	private final List<BiFunction<Context, byte[], CompletableFuture<Context>>> preprocessors = new ArrayList<>();
+	private final List<BiFunction<Context, Entry<String, byte[]>, CompletableFuture<Context>>> preprocessors = new ArrayList<>();
 
 	private final Serializer serializer;
 
@@ -108,7 +108,7 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 
 	private final ExecutorService executors;
 
-	ServiceDispatcherImpl(Map<String, Entry<Object, Method>> endpoints, List<BiFunction<Context, byte[], CompletableFuture<Context>>> preprocessors, Serializer serializer, Map<String, Deserializer> deserializerMap, ExecutorService executors) {
+	ServiceDispatcherImpl(Map<String, Entry<Object, Method>> endpoints, List<BiFunction<Context, Entry<String, byte[]>, CompletableFuture<Context>>> preprocessors, Serializer serializer, Map<String, Deserializer> deserializerMap, ExecutorService executors) {
 		this.endpoints.putAll(endpoints);
 		this.preprocessors.addAll(preprocessors);
 		this.serializer = Objects.requireNonNull(serializer, "Serializer is required");
@@ -128,8 +128,9 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 	public CompletableFuture<Entry<Context, byte[]>> call(@Nonnull String route, @Nonnull Context context, @Nullable byte[] incomingData) {
 
 		CompletableFuture<Context> promise = CompletableFuture.completedFuture(context);
-		for (BiFunction<Context, byte[], CompletableFuture<Context>> preprocessor : preprocessors) {
-			promise = promise.thenCompose((c) -> preprocessor.apply(c, incomingData));
+		Entry<String, byte[]> routeAndDate = new SimpleEntry<>(route, incomingData);
+		for (BiFunction<Context, Entry<String, byte[]>, CompletableFuture<Context>> preprocessor : preprocessors) {
+			promise = promise.thenCompose((c) -> preprocessor.apply(c, routeAndDate));
 		}
 
 		AtomicReference<Context> contextHolder = new AtomicReference<>(context);

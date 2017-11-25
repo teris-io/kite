@@ -272,11 +272,12 @@ The service dispatcher allows for registration of a series of preprocessors that
 (asynchronously) before dispatching to the actual service implementation. Preprocessors are
 functions that satisfy the following declaration:
 
-	BiFunction<Context, byte[], CompletableFuture<Context>>
+	BiFunction<Context, Entry<String, byte[]>, CompletableFuture<Context>>
 
 Each preprocessor asynchronously receives the context from the previous iteration and can
-use its values and the original data to make generate new values for the context and or
-validate permissions.
+use its values and the original data to generate new values for the context and/or
+validate permissions. The pair of route and incoming data is passed into every preprocesor
+along with the context.
 
 
 ## Public APIs

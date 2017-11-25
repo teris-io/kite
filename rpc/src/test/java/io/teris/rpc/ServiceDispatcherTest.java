@@ -139,13 +139,13 @@ public class ServiceDispatcherTest {
 		SomeService serviceImpl = mock(SomeService.class);
 		doReturn("boo").when(serviceImpl).sync(any(), any());
 
-		BiFunction<Context, byte[], CompletableFuture<Context>> prep1 = (context, bytes) -> {
+		BiFunction<Context, Entry<String, byte[]>, CompletableFuture<Context>> prep1 = (context, bytes) -> {
 			context = new Context(context);
 			context.put("propX", "25");
 			return CompletableFuture.completedFuture(context);
 		};
 
-		BiFunction<Context, byte[], CompletableFuture<Context>> prep2 = (context, bytes) -> {
+		BiFunction<Context, Entry<String, byte[]>, CompletableFuture<Context>> prep2 = (context, bytes) -> {
 			context = new Context(context);
 			context.put("propX", String.valueOf(Integer.valueOf(context.get("propX")).intValue() + 32));
 			return CompletableFuture.completedFuture(context);
@@ -172,13 +172,13 @@ public class ServiceDispatcherTest {
 		SomeService serviceImpl = mock(SomeService.class);
 		doReturn("boo").when(serviceImpl).sync(any(), any());
 
-		BiFunction<Context, byte[], CompletableFuture<Context>> prep1 = (context, bytes) -> {
+		BiFunction<Context, Entry<String, byte[]>, CompletableFuture<Context>> prep1 = (context, bytes) -> {
 			context = new Context(context);
 			context.put("propX", "25");
 			return CompletableFuture.completedFuture(context);
 		};
 
-		BiFunction<Context, byte[], CompletableFuture<Context>> prep2 = (context, bytes) -> {
+		BiFunction<Context, Entry<String, byte[]>, CompletableFuture<Context>> prep2 = (context, bytes) -> {
 			throw new InvocationException("boom");
 		};
 

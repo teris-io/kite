@@ -77,7 +77,7 @@ public interface ServiceDispatcher {
 		 * into the next one.
 		 */
 		@Nonnull
-		Builder preprocessor(BiFunction<Context, byte[], CompletableFuture<Context>> preprocessor);
+		Builder preprocessor(BiFunction<Context, Entry<String, byte[]>, CompletableFuture<Context>> preprocessor);
 
 		/**
 		 * Binds an implementation of a service and registers all dispatching routes.
