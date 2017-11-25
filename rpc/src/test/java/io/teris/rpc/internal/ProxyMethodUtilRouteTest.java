@@ -39,6 +39,12 @@ public class ProxyMethodUtilRouteTest {
 		void foo();
 	}
 
+	@Service
+	interface SingleMethodService {
+		@Name("")
+		void emptyMethodName();
+	}
+
 	@Service("some.path")
 	interface PathOvewriteService {
 		void foo();
@@ -71,6 +77,14 @@ public class ProxyMethodUtilRouteTest {
 		AService s = Proxier.get(AService.class, done);
 		s.emptyServiceRoute();
 		assertEquals("emptyserviceroute", done.get());
+	}
+
+	@Test
+	public void route_nonEmptyPath_emptyMethod_success() throws Exception {
+		CompletableFuture<String> done = new CompletableFuture<>();
+		SingleMethodService s = Proxier.get(SingleMethodService.class, done);
+		s.emptyMethodName();
+		assertEquals("io.teris.rpc.internal.proxymethodutilroutetest.singlemethod", done.get());
 	}
 
 	@Test

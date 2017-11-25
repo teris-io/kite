@@ -8,7 +8,7 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentSkipListMap;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -19,7 +19,7 @@ public class Context implements Map<String, String> {
 
 	public static final String X_REQUEST_ID_KEY = "X-Request-ID";
 
-	private final ConcurrentHashMap<String, String> data = new ConcurrentHashMap<>();
+	private final ConcurrentSkipListMap<String, String> data = new ConcurrentSkipListMap<>(String.CASE_INSENSITIVE_ORDER);
 
 
 	public Context() {

@@ -46,4 +46,32 @@ public class ContextTest {
 		context.clear();
 		assertTrue(context.isEmpty());
 	}
+
+	@Test
+	public void keySet_preservesOriginalKeyCase_success() {
+		Context context = new Context();
+		context.put("KeY1", "value1");
+		context.put("kEY2", "value2");
+		assertEquals("[KeY1, kEY2]", context.keySet().toString());
+	}
+
+	@Test
+	public void get_remove_containsKey_caseInsensitive_success() {
+		Context context = new Context();
+		context.put("KeY1", "value1");
+		context.put("kEY2", "value2");
+		assertEquals("value1", context.get("key1"));
+		assertEquals("value1", context.get("KeY1"));
+		assertEquals("value2", context.remove("key2"));
+		assertEquals(1, context.size());
+		assertTrue(context.containsKey("key1"));
+		assertFalse(context.containsKey("key2"));
+	}
+
+	@Test
+	public void put_sameValueInDifferenceCase_overwrites_success() {
+
+	}
+
+
 }
