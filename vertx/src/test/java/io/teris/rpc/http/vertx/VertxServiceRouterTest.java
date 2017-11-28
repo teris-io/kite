@@ -4,7 +4,9 @@
 
 package io.teris.rpc.http.vertx;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNull;
 import static org.junit.Assert.assertTrue;
 
 import java.lang.reflect.Field;
@@ -37,8 +39,7 @@ public class VertxServiceRouterTest {
 	}
 
 	@Test
-	public void route_registersCaseInsensiticeEndpoint() throws Exception {
-
+	public void route_registersCaseInsensiticeEndpointsByDefault_success() throws Exception {
 		ServiceDispatcher dispatcher = ServiceDispatcher.builder()
 			.serializer(GsonSerializer.builder().build())
 			.bind(PingService.class, new PingServiceImpl())
@@ -58,5 +59,26 @@ public class VertxServiceRouterTest {
 		assertTrue(pattern.matcher("/uPstreAm/ping").matches());
 		assertFalse(pattern.matcher("/Upstream/PingSomething").matches());
 		assertFalse(pattern.matcher("/Upstream/Ping/something").matches());
+	}
+
+	@Test
+	public void route_registersCaseSensiticeEndpointsWhenRequested_success() throws Exception {
+		ServiceDispatcher dispatcher = ServiceDispatcher.builder()
+			.serializer(GsonSerializer.builder().build())
+			.bind(PingService.class, new PingServiceImpl())
+			.build();
+
+		Router router = Router.router(Vertx.vertx());
+
+		VertxServiceRouter.builder(router).caseSensitive().build()
+			.route(dispatcher);
+
+		RouteImpl route = (RouteImpl) router.getRoutes().get(0);
+		Field field = route.getClass().getDeclaredField("pattern");
+		field.setAccessible(true);
+		Pattern pattern = (Pattern) field.get(route);
+
+		assertNull(pattern);
+		assertEquals("/upstream/ping", route.getPath());
 	}
 }
