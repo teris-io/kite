@@ -14,6 +14,7 @@ ext {
 	logbackModule = "ch.qos.logback:logback-classic:1.2.3"
 	slf4jModule = "org.slf4j:slf4j-api:1.7.25"
 	vertxWebModule = "io.vertx:vertx-web:3.5.0"
+	vertxTestModule = "io.vertx:vertx-unit:3.5.0"
 
 	junitModule = "junit:junit:4.12"
 	mockitoModule = "org.mockito:mockito-core:2.12.0"
@@ -21,7 +22,7 @@ ext {
 }
 
 allprojects {
-	version = "0.3.0"
+	version = "0.3.1"
 	group = "io.teris.rpc"
 
 	plugins.apply(JacocoPlugin)

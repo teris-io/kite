@@ -13,13 +13,23 @@ abstract class RoutingBase {
 	}
 
 	String routeToUri(String route) {
-		return (uriPrefix != null ? uriPrefix : "") + "/" + route.replaceAll("\\.", "/");
+		String res = (uriPrefix != null ? uriPrefix : "") + "/" + route;
+		if (!res.startsWith("/")) {
+			res = "/" + res;
+		}
+		return res.replaceAll("\\.", "/").replaceAll("(/)\\1+", "$1");
 	}
 
 	String uriToRoute(String uri) {
-		if (uriPrefix != null && uri.startsWith(uriPrefix)) {
-			uri = uri.substring(uriPrefix.length());
+		String uriStart = "/";
+		if (uriPrefix != null) {
+			uriStart = routeToUri("");
 		}
-		return uri.replaceAll("/", ".").substring(1);
+		uri = uri.replaceAll("(/)\\1+", "$1");
+		if (uri.startsWith(uriStart)) {
+			uri = uri.substring(uriStart.length());
+		}
+		String res = uri.replaceAll("/", ".");
+		return res.startsWith(".") ? res.substring(1) : res;
 	}
 }

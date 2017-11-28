@@ -47,7 +47,7 @@ class VertxServiceRouterImpl implements VertxServiceRouter {
 		@Nonnull
 		@Override
 		public Builder uriPrefix(@Nonnull String uriPrefix) {
-			this.uriPrefix = uriPrefix;
+			this.uriPrefix = uriPrefix.startsWith("/") ? uriPrefix : "/" + uriPrefix;
 			return this;
 		}
 
@@ -78,7 +78,8 @@ class VertxServiceRouterImpl implements VertxServiceRouter {
 		VertxDispatchingHandler dispatchingHandler = new VertxDispatchingHandler(uriPrefix, serviceDispatcher);
 
 		for (String uri: dispatchingHandler.dispatchUris()) {
-			Route x = router.post(uri);
+			String uriRegex = "(?i)" + uri.replaceAll("\\.", "\\.");
+			Route x = router.postWithRegex(uriRegex);
 			for (Handler<RoutingContext> preconditioner: preconditioners) {
 				x = x.handler(preconditioner);
 			}
