@@ -24,9 +24,12 @@ class VertxServiceRouterImpl implements VertxServiceRouter {
 
 	private final List<Handler<RoutingContext>> preconditioners = new ArrayList<>();
 
-	VertxServiceRouterImpl(Router router, String uriPrefix, List<Handler<RoutingContext>> preconditioners) {
+	private final boolean caseSensitive;
+
+	VertxServiceRouterImpl(Router router, String uriPrefix, List<Handler<RoutingContext>> preconditioners, boolean caseSensitive) {
 		this.router = router;
 		this.uriPrefix = uriPrefix;
+		this.caseSensitive = caseSensitive;
 		this.preconditioners.add(BodyHandler.create());
 		this.preconditioners.addAll(preconditioners);
 	}
@@ -39,6 +42,8 @@ class VertxServiceRouterImpl implements VertxServiceRouter {
 
 		private final List<Handler<RoutingContext>> preconditioners = new ArrayList<>();
 
+		private boolean caseSensitive = false;
+
 
 		BuilderImpl(Router router) {
 			this.router = router;
@@ -47,7 +52,7 @@ class VertxServiceRouterImpl implements VertxServiceRouter {
 		@Nonnull
 		@Override
 		public Builder uriPrefix(@Nonnull String uriPrefix) {
-			this.uriPrefix = uriPrefix;
+			this.uriPrefix = uriPrefix.startsWith("/") ? uriPrefix : "/" + uriPrefix;
 			return this;
 		}
 
@@ -67,8 +72,15 @@ class VertxServiceRouterImpl implements VertxServiceRouter {
 
 		@Nonnull
 		@Override
+		public Builder caseSensitive() {
+			this.caseSensitive = true;
+			return this;
+		}
+
+		@Nonnull
+		@Override
 		public VertxServiceRouter build() {
-			return new VertxServiceRouterImpl(router, uriPrefix, preconditioners);
+			return new VertxServiceRouterImpl(router, uriPrefix, preconditioners, caseSensitive);
 		}
 	}
 
@@ -78,11 +90,17 @@ class VertxServiceRouterImpl implements VertxServiceRouter {
 		VertxDispatchingHandler dispatchingHandler = new VertxDispatchingHandler(uriPrefix, serviceDispatcher);
 
 		for (String uri: dispatchingHandler.dispatchUris()) {
-			Route x = router.post(uri);
-			for (Handler<RoutingContext> preconditioner: preconditioners) {
-				x = x.handler(preconditioner);
+			Route route;
+			if (caseSensitive) {
+				route = router.post(uri);
 			}
-			x.handler(dispatchingHandler);
+			else {
+				route = router.postWithRegex("(?i)" + uri);
+			}
+			for (Handler<RoutingContext> preconditioner: preconditioners) {
+				route = route.handler(preconditioner);
+			}
+			route.handler(dispatchingHandler);
 		}
 		return this;
 	}

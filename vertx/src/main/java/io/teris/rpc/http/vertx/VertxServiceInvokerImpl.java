@@ -44,7 +44,7 @@ class VertxServiceInvokerImpl extends RoutingBase implements VertxServiceInvoker
 		@Nonnull
 		@Override
 		public Builder uriPrefix(@Nonnull String uriPrefix) {
-			this.uriPrefix = uriPrefix;
+			this.uriPrefix = uriPrefix.startsWith("/") ? uriPrefix : "/" + uriPrefix;
 			return this;
 		}
 
