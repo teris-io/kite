@@ -51,7 +51,7 @@ public class ServiceDispatcherImplDeserializeTest {
 
 	@Test
 	public void deserialize_argsWithGenerics_success() throws Exception {
-		ServiceDispatcherImpl underTest = new ServiceDispatcherImpl(Collections.emptyMap(), Collections.emptyList(), serializer, Collections.emptyMap(), null);
+		ServiceDispatcherImpl underTest = new ServiceDispatcherImpl(Collections.emptyMap(), Collections.emptyList(), serializer, Collections.emptyMap(), null, () -> "1234");
 
 		HashSet<String> keys = new HashSet<>(Arrays.asList("Ab", "Bc"));
 		HashMap<String, Integer> data = new HashMap<>();
@@ -70,7 +70,7 @@ public class ServiceDispatcherImplDeserializeTest {
 
 	@Test
 	public void deserialize_emptyData_success_nulls() throws Exception {
-		ServiceDispatcherImpl underTest = new ServiceDispatcherImpl(Collections.emptyMap(), Collections.emptyList(), serializer, Collections.emptyMap(), null);
+		ServiceDispatcherImpl underTest = new ServiceDispatcherImpl(Collections.emptyMap(), Collections.emptyList(), serializer, Collections.emptyMap(), null, () -> "1234");
 
 		Object[] actual = underTest.deserialize(context, method, new byte[]{}).get();
 		assertEquals(3, actual.length);
@@ -81,7 +81,7 @@ public class ServiceDispatcherImplDeserializeTest {
 
 	@Test
 	public void deserialize_nullData_success_nulls() throws Exception {
-		ServiceDispatcherImpl underTest = new ServiceDispatcherImpl(Collections.emptyMap(), Collections.emptyList(), serializer, Collections.emptyMap(), null);
+		ServiceDispatcherImpl underTest = new ServiceDispatcherImpl(Collections.emptyMap(), Collections.emptyList(), serializer, Collections.emptyMap(), null, () -> "1234");
 
 		Object[] actual = underTest.deserialize(context, method, null).get();
 		assertEquals(3, actual.length);
@@ -92,7 +92,7 @@ public class ServiceDispatcherImplDeserializeTest {
 
 	@Test
 	public void deserialize_noParams_emptyData_success_contextOnly() throws Exception {
-		ServiceDispatcherImpl underTest = new ServiceDispatcherImpl(Collections.emptyMap(), Collections.emptyList(), serializer, Collections.emptyMap(), null);
+		ServiceDispatcherImpl underTest = new ServiceDispatcherImpl(Collections.emptyMap(), Collections.emptyList(), serializer, Collections.emptyMap(), null, () -> "1234");
 
 		Method emptyMethod = AService.class.getMethod("empty", Context.class);
 
@@ -103,7 +103,7 @@ public class ServiceDispatcherImplDeserializeTest {
 
 	@Test
 	public void deserialize_missingArgs_success_null() throws Exception {
-		ServiceDispatcherImpl underTest = new ServiceDispatcherImpl(Collections.emptyMap(), Collections.emptyList(), serializer, Collections.emptyMap(), null);
+		ServiceDispatcherImpl underTest = new ServiceDispatcherImpl(Collections.emptyMap(), Collections.emptyList(), serializer, Collections.emptyMap(), null, () -> "1234");
 
 		HashMap<String, Integer> data = new HashMap<>();
 		data.put("Cd", Integer.valueOf(25));
@@ -120,7 +120,7 @@ public class ServiceDispatcherImplDeserializeTest {
 
 	@Test
 	public void deserialize_extraArgs_throws() throws Exception {
-		ServiceDispatcherImpl underTest = new ServiceDispatcherImpl(Collections.emptyMap(), Collections.emptyList(), serializer, Collections.emptyMap(), null);
+		ServiceDispatcherImpl underTest = new ServiceDispatcherImpl(Collections.emptyMap(), Collections.emptyList(), serializer, Collections.emptyMap(), null, () -> "1234");
 
 		HashSet<String> keys = new HashSet<>(Arrays.asList("Ab", "Bc"));
 		LinkedHashMap<String, Serializable> args = new LinkedHashMap<>();

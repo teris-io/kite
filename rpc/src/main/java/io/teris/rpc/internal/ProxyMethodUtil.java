@@ -130,11 +130,12 @@ public final class ProxyMethodUtil {
 		}
 		for (int i = 1; i < method.getParameterCount(); i++) {
 			Parameter param = method.getParameters()[i];
-			validateArgumentType(method, param.getParameterizedType());
+			String paramName = param.getAnnotation(Name.class) != null ? param.getAnnotation(Name.class).value() : "unnamed";
+			validateArgumentType(method, paramName, param.getParameterizedType());
 		}
 	}
 
-	private static void validateArgumentType(Method method, Type type) throws InvocationException {
+	private static void validateArgumentType(Method method, String paramName, Type type) throws InvocationException {
 		if (type instanceof WildcardType) {
 			String message = String.format("Parameter types in %s.%s must contain no wildcards",
 				method.getDeclaringClass().getSimpleName(), method.getName());
@@ -143,19 +144,19 @@ public final class ProxyMethodUtil {
 		if (type instanceof Class) {
 			Class<?> clazz = (Class<?>) type;
 			if (clazz.isArray()) {
-				validateArgumentType(method, clazz.getComponentType());
+				validateArgumentType(method, paramName, clazz.getComponentType());
 			}
 			else if (!Serializable.class.isAssignableFrom(clazz) && !clazz.isPrimitive() && !clazz.isEnum()) {
-				String message = String.format("After %s all parameter types in %s.%s must implement Serializable",
-					Context.class.getSimpleName(), method.getDeclaringClass().getSimpleName(), method.getName());
+				String message = String.format("After %s all parameter types in %s.%s must implement Serializable: found parameter %s with type %s",
+					Context.class.getSimpleName(), method.getDeclaringClass().getSimpleName(), method.getName(), paramName, clazz.getSimpleName());
 				throw new InvocationException(message);
 			}
 		}
 		if (type instanceof ParameterizedType) {
 			ParameterizedType parametrizedType = (ParameterizedType) type;
-			validateArgumentType(method, parametrizedType.getRawType());
+			validateArgumentType(method, paramName, parametrizedType.getRawType());
 			for (Type subtype : parametrizedType.getActualTypeArguments()) {
-				validateArgumentType(method, subtype);
+				validateArgumentType(method, paramName, subtype);
 			}
 		}
 	}

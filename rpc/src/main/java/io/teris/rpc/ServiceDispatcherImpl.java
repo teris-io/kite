@@ -18,6 +18,7 @@ import java.util.Map.Entry;
 import java.util.Objects;
 import java.util.Set;
 import java.util.TreeSet;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.CompletionException;
 import java.util.concurrent.ConcurrentHashMap;
@@ -25,6 +26,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.BiFunction;
+import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -33,6 +35,8 @@ import io.teris.rpc.internal.ProxyMethodUtil;
 
 
 class ServiceDispatcherImpl implements ServiceDispatcher {
+
+	private final Supplier<String> uidGenerator;
 
 	static class BuilderImpl implements ServiceDispatcher.Builder {
 
@@ -45,6 +49,8 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 		private final Map<String, Deserializer> deserializerMap = new HashMap<>();
 
 		private ExecutorService executors = null;
+
+		private Supplier<String> uidGenerator = () -> UUID.randomUUID().toString();;
 
 		@Nonnull
 		@Override
@@ -76,6 +82,13 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 
 		@Nonnull
 		@Override
+		public Builder uidGenerator(@Nonnull Supplier<String> uidGenerator) {
+			this.uidGenerator = uidGenerator;
+			return this;
+		}
+
+		@Nonnull
+		@Override
 		public Builder preprocessor(BiFunction<Context, Entry<String, byte[]>, CompletableFuture<Context>> preprocessor) {
 			this.preprocessors.add(preprocessor);
 			return this;
@@ -94,7 +107,7 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 		@Nonnull
 		@Override
 		public ServiceDispatcher build() {
-			return new ServiceDispatcherImpl(endpoints, preprocessors, serializer, deserializerMap, executors);
+			return new ServiceDispatcherImpl(endpoints, preprocessors, serializer, deserializerMap, executors, uidGenerator);
 		}
 	}
 
@@ -108,12 +121,13 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 
 	private final ExecutorService executors;
 
-	ServiceDispatcherImpl(Map<String, Entry<Object, Method>> endpoints, List<BiFunction<Context, Entry<String, byte[]>, CompletableFuture<Context>>> preprocessors, Serializer serializer, Map<String, Deserializer> deserializerMap, ExecutorService executors) {
+	ServiceDispatcherImpl(Map<String, Entry<Object, Method>> endpoints, List<BiFunction<Context, Entry<String, byte[]>, CompletableFuture<Context>>> preprocessors, Serializer serializer, Map<String, Deserializer> deserializerMap, ExecutorService executors, Supplier<String> uidGenerator) {
 		this.endpoints.putAll(endpoints);
 		this.preprocessors.addAll(preprocessors);
 		this.serializer = Objects.requireNonNull(serializer, "Serializer is required");
 		this.deserializerMap.putAll(deserializerMap);
 		this.executors = executors != null ? executors : Executors.newCachedThreadPool();
+		this.uidGenerator = uidGenerator;
 	}
 
 	@Nonnull
@@ -126,7 +140,9 @@ class ServiceDispatcherImpl implements ServiceDispatcher {
 	@Nonnull
 	@Override
 	public CompletableFuture<Entry<Context, byte[]>> call(@Nonnull String route, @Nonnull Context context, @Nullable byte[] incomingData) {
-
+		if (!context.containsKey(Context.X_REQUEST_ID_KEY)) {
+			context.put(Context.X_REQUEST_ID_KEY, uidGenerator.get());
+		}
 		CompletableFuture<Context> promise = CompletableFuture.completedFuture(context);
 		Entry<String, byte[]> routeAndDate = new SimpleEntry<>(route, incomingData);
 		for (BiFunction<Context, Entry<String, byte[]>, CompletableFuture<Context>> preprocessor : preprocessors) {
