@@ -21,6 +21,7 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.TreeSet;
+import java.util.UUID;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Executors;
@@ -77,6 +78,7 @@ public class ServiceDispatcherTest {
 			.deserializer("text", serializer.deserializer())
 			.deserializers(deserializerMap)
 			.executors(Executors.newCachedThreadPool())
+			.uidGenerator(() -> "1" + UUID.randomUUID().toString())
 			.build();
 	}
 
@@ -84,7 +86,7 @@ public class ServiceDispatcherTest {
 	public void constructor_serializerNull_throws() {
 		exception.expect(NullPointerException.class);
 		exception.expectMessage("Serializer is required");
-		new ServiceDispatcherImpl(Collections.emptyMap(), Collections.emptyList(), null, Collections.emptyMap(), null);
+		new ServiceDispatcherImpl(Collections.emptyMap(), Collections.emptyList(), null, Collections.emptyMap(), null, () -> "1234");
 	}
 
 	@Test
@@ -132,6 +134,23 @@ public class ServiceDispatcherTest {
 		assertNull(response.exception);
 		assertTrue(response.payload instanceof byte[]);
 		assertEquals("\"boo\"", new String((byte[]) response.payload));
+	}
+
+	@Test
+	public void call_withNoRequestId_setsId() throws Exception {
+		SomeService serviceImpl = mock(SomeService.class);
+		doReturn("boo").when(serviceImpl).sync(any(), any());
+
+		ServiceDispatcher dispatcher = ServiceDispatcher.builder()
+			.serializer(serializer)
+			.uidGenerator(() -> "1234")
+			.bind(SomeService.class, serviceImpl)
+			.build();
+
+		Context context = new Context();
+		CompletableFuture<Entry<Context, byte[]>> promise =	dispatcher.call("some.sync", context, "{\"value\":\"foo\"}".getBytes());
+		Entry<Context, byte[]> res = promise.get(5, TimeUnit.SECONDS);
+		assertEquals("1234", context.get(Context.X_REQUEST_ID_KEY));
 	}
 
 	@Test
@@ -226,7 +245,7 @@ public class ServiceDispatcherTest {
 
 	@Test
 	public void call_noRoute_exceptionWrappedIntoExDataHolder() throws Exception {
-		ServiceDispatcher dispatcher = new ServiceDispatcherImpl(Collections.emptyMap(), Collections.emptyList(), new TestSerializer(), Collections.emptyMap(), null);
+		ServiceDispatcher dispatcher = new ServiceDispatcherImpl(Collections.emptyMap(), Collections.emptyList(), new TestSerializer(), Collections.emptyMap(), null, () -> "1234");
 		CompletableFuture<Entry<Context, byte[]>> promise =	dispatcher.call("some.route", new Context(), new byte[]{});
 		Entry<Context, byte[]> res = promise.get(5, TimeUnit.SECONDS);
 		Response response = deserializer.deserialize(res.getValue(), Response.class).get(5, TimeUnit.SECONDS);

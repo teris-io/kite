@@ -10,6 +10,7 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.function.BiFunction;
+import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
@@ -69,6 +70,9 @@ public interface ServiceDispatcher {
 		 */
 		@Nonnull
 		Builder executors(@Nonnull ExecutorService executors);
+
+		@Nonnull
+		Builder uidGenerator(@Nonnull Supplier<String> uidGenerator);
 
 		/**
 		 * Binds a preprocessor executed for each service method before dispatching to the

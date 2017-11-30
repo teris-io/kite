@@ -133,7 +133,7 @@ public class ProxyMethodUtilArgumentsTest {
 		FailingArgs s = Proxier.get(FailingArgs.class, done);
 		s.nonSerializable(context, "a");
 		exception.expect(ExecutionException.class);
-		exception.expectMessage("InvocationException: After Context all parameter types in FailingArgs.nonSerializable must implement Serializable");
+		exception.expectMessage("InvocationException: After Context all parameter types in FailingArgs.nonSerializable must implement Serializable: found parameter title with type Object");
 		done.get();
 	}
 
