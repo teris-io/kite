@@ -88,6 +88,11 @@ class VertxServiceInvokerImpl extends RoutingBase implements VertxServiceInvoker
 		for (Entry<String, String> entry : context.entrySet()) {
 			httpRequest.putHeader(entry.getKey(), entry.getValue());
 		}
+		httpRequest.exceptionHandler(t -> {
+			promise.completeExceptionally(new InvocationException("request exception", t));
+			log.error(String.format("status=CLIENT-ERROR, corrId=%s, target=%s", corrId, uri), t);
+		});
+
 		if (outgoing != null) {
 			httpRequest.setChunked(true).end(Buffer.buffer(outgoing));
 		}

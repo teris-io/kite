@@ -22,7 +22,7 @@ ext {
 }
 
 allprojects {
-	version = "0.3.2"
+	version = "0.3.3"
 	group = "io.teris.rpc"
 
 	plugins.apply(JacocoPlugin)
