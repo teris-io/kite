@@ -5,6 +5,8 @@
 package io.teris.rpc.serialization.json;
 
 import java.io.Serializable;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 
@@ -23,9 +25,16 @@ public class GsonSerializer implements Serializer {
 
 	private final Gson gson;
 
+	private final Charset charset;
+
 	public GsonSerializer(GsonBuilder builder) {
+		this(builder, StandardCharsets.UTF_8);
+	}
+
+	public GsonSerializer(GsonBuilder builder, Charset charset) {
 		gson = builder.create();
-		deserializer = new GsonDeserializer(builder);
+		this.charset = charset;
+		deserializer = new GsonDeserializer(builder, charset);
 	}
 
 	public static GsonSerializerBuilder builder() {
@@ -35,7 +44,7 @@ public class GsonSerializer implements Serializer {
 	@Nonnull
 	@Override
 	public <CT extends Serializable> CompletableFuture<byte[]> serialize(@Nonnull CT value) {
-		return CompletableFuture.supplyAsync(() -> gson.toJson(value).getBytes());
+		return CompletableFuture.supplyAsync(() -> gson.toJson(value).getBytes(charset));
 	}
 
 	@Nonnull

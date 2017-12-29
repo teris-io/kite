@@ -6,6 +6,8 @@ package io.teris.rpc.serialization.json;
 
 import java.io.Serializable;
 import java.lang.reflect.Type;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.concurrent.CompletableFuture;
 import javax.annotation.Nonnull;
 
@@ -23,29 +25,42 @@ public class GsonDeserializer implements Deserializer {
 
 	private final Gson gson;
 
+	private final Charset charset;
+
 	public GsonDeserializer(GsonBuilder builder) {
+		this(builder, StandardCharsets.UTF_8);
+	}
+
+	public GsonDeserializer(GsonBuilder builder, Charset charset) {
 		gson = builder
-			.registerTypeAdapter(Serializable.class, new SerializableDeserializer())
+			.registerTypeAdapter(Serializable.class, new SerializableDeserializer(charset))
 			.create();
+		this.charset = charset;
 	}
 
 	@Nonnull
 	@Override
 	public <CT extends Serializable> CompletableFuture<CT> deserialize(@Nonnull byte[] data, @Nonnull Class<CT> clazz) {
-		return CompletableFuture.supplyAsync(() -> gson.fromJson(new String(data), clazz));
+		return CompletableFuture.supplyAsync(() -> gson.fromJson(new String(data, charset), clazz));
 	}
 
 	@Nonnull
 	@Override
 	public <CT extends Serializable> CompletableFuture<CT> deserialize(@Nonnull byte[] data, @Nonnull Type type) {
-		return CompletableFuture.supplyAsync(() -> gson.fromJson(new String(data), type));
+		return CompletableFuture.supplyAsync(() -> gson.fromJson(new String(data, charset), type));
 	}
 
 	private static class SerializableDeserializer implements JsonDeserializer<Serializable> {
 
+		private final Charset charset;
+
+		SerializableDeserializer(Charset charset) {
+			this.charset = charset;
+		}
+
 		@Override
 		public Serializable deserialize(JsonElement json, Type typeOfT, JsonDeserializationContext context) throws JsonParseException {
-			return json.toString().getBytes();
+			return json.toString().getBytes(charset);
 		}
 	}
 }

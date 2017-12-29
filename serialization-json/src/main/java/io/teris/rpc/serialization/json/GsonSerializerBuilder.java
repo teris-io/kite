@@ -5,6 +5,8 @@
 package io.teris.rpc.serialization.json;
 
 import java.lang.reflect.Type;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
@@ -32,6 +34,7 @@ public class GsonSerializerBuilder {
 		.registerTypeAdapter(OffsetDateTime.class, new OffsetDateTimeSerializer())
 		.registerTypeAdapter(OffsetDateTime.class, new OffsetDateTimeDeserializer());
 
+	private Charset charset = StandardCharsets.UTF_8;
 
 	GsonSerializerBuilder() {}
 
@@ -40,12 +43,17 @@ public class GsonSerializerBuilder {
 		return this;
 	}
 
+	public GsonSerializerBuilder withCharset(Charset charset) {
+		this.charset = charset;
+		return this;
+	}
+
 	public GsonBuilder rawBuilder() {
 		return builder;
 	}
 
 	public GsonSerializer build() {
-		return new GsonSerializer(builder);
+		return new GsonSerializer(builder, charset);
 	}
 
 	private static class LocalDateDeserializer implements JsonDeserializer<LocalDate> {

@@ -7,6 +7,7 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNull;
 
 import java.io.Serializable;
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
@@ -16,6 +17,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
 
 import org.junit.Rule;
 import org.junit.Test;
@@ -146,5 +148,23 @@ public class GsonSerializerTest {
 		CompletableFuture<HashMap<String, Serializable>> actual = deserializer.deserialize(payload, TypedefOuter.class.getGenericSuperclass());
 		CompletableFuture<HashSet<LocalDateTime>> actualDates = deserializer.deserialize((byte[]) actual.get().get("dates"), TypedefInner.class.getGenericSuperclass());
 		assertEquals(dates, actualDates.get());
+	}
+
+	@Test
+	public void roundtrip_iso8859_1_ok() throws Exception {
+		String value = "äüöабв";
+		Serializer serializer = GsonSerializer.builder().withCharset(StandardCharsets.ISO_8859_1).build();
+		byte[] data = serializer.serialize(value).get(5, TimeUnit.SECONDS);
+		assertEquals(8, data.length);
+		assertEquals("äüö???", serializer.deserializer().deserialize(data, String.class).get(5, TimeUnit.SECONDS));
+	}
+
+	@Test
+	public void roundtrip_utf8_asDefault_ok() throws Exception {
+		String value = "äüöабв";
+		Serializer serializer = GsonSerializer.builder().build();
+		byte[] data = serializer.serialize(value).get(5, TimeUnit.SECONDS);
+		assertEquals(14, data.length);
+		assertEquals(value, serializer.deserializer().deserialize(data, String.class).get(5, TimeUnit.SECONDS));
 	}
 }
