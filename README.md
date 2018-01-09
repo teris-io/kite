@@ -112,11 +112,10 @@ deserializer is provided by the registered serializer.
 `ServiceFactory` instances can be constructed for example in the following manner:
 
 ```java
-ServiceFactory factory = ServiceFactory
-	.builder()
-		.serviceInvoker(invoker)
-		.serializer(serializer)
-		.build();
+ServiceFactory factory = ServiceFactory.builder()
+	.serviceInvoker(invoker)
+	.serializer(serializer)
+	.build();
 ```
 
 Service proxies are then obtained by calling `newInstance` on the factory:
