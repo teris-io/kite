@@ -205,10 +205,11 @@ can be instantiated as follows (adding further optional parameters for completen
 ```java
 Vertx vertx = Vertx.vertx();
 
-HttpClient httpClient = vertx.createHttpClient(new HttpClientOptions()
-	.setDefaultHost("localhost")
-	.setDefaultPort(8080)
-	.setMaxPoolSize(50));
+HttpClient httpClient = vertx
+	.createHttpClient(new HttpClientOptions()
+		.setDefaultHost("localhost")
+		.setDefaultPort(8080)
+		.setMaxPoolSize(50));
 
 ServiceInvoker invoker = VertxServiceInvoker.builder(httpClient).build();
 
