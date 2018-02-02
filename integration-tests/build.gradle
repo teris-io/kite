@@ -7,13 +7,13 @@ plugins.apply(JavaPlugin)
 dependencies {
 	testCompile(junitModule)
 	testCompile(mockitoModule)
-	testCompile(project(":serialization-json"))
-
-	testCompile(project(":vertx"))
-
-	testCompile(project(":amqp"))
-
-	testCompile(project(":jms"))
+	testCompile(project(":kite"))
+	testCompile(project(":kite-gson"))
+	testCompile(project(":kite-fasterxml"))
+	testCompile(project(":kite-rpc"))
+	testCompile(project(":kite-rpc-vertx"))
+	testCompile(project(":kite-rpc-amqp"))
+	testCompile(project(":kite-rpc-jms"))
 	testCompile(activemqClientModule)
 	testCompile(activemqBrokerModule)
 	// amq persistence

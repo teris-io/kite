@@ -1,0 +1,16 @@
+/*
+ * Copyright (c) Oleg Sklyar & teris.io, 2018. All rights reserved.
+ */
+
+plugins.apply(JavaPlugin)
+
+dependencies {
+	compileOnly(findbugsModule)
+	compile(project(":kite"))
+	compile(jacksonDatabindModule)
+	compile(jacksonDatatypeJSR310Module) {
+		transitive = false
+	}
+
+	testCompile(junitModule)
+}

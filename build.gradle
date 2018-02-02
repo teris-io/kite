@@ -8,10 +8,13 @@ ext {
 	activemqBrokerModule = "org.apache.activemq:activemq-broker:5.15.2"
 	activemqClientModule = "org.apache.activemq:activemq-client:5.15.2"
 	activemqKahaDbModule = "org.apache.activemq:activemq-kahadb-store:5.15.2"
-	findbugsModule = "com.google.code.findbugs:annotations:3.0.1"
+	findbugsModule = "com.google.code.findbugs:jsr305:3.0.1"
 	geronimoJmsModule = "org.apache.geronimo.specs:geronimo-jms_1.1_spec:1.1.1"
 	gsonModule = "com.google.code.gson:gson:2.8.2"
+	jacksonDatabindModule = "com.fasterxml.jackson.core:jackson-databind:2.9.2"
+	jacksonDatatypeJSR310Module = "com.fasterxml.jackson.datatype:jackson-datatype-jsr310:2.9.2"
 	logbackModule = "ch.qos.logback:logback-classic:1.2.3"
+	rabbitmqModule = "com.rabbitmq:amqp-client:5.1.2"
 	slf4jModule = "org.slf4j:slf4j-api:1.7.25"
 	vertxWebModule = "io.vertx:vertx-web:3.5.0"
 	vertxTestModule = "io.vertx:vertx-unit:3.5.0"
@@ -22,8 +25,8 @@ ext {
 }
 
 allprojects {
-	version = "0.4.0"
-	group = "io.teris.rpc"
+	version = "0.5.0"
+	group = "io.teris.kite"
 
 	plugins.apply(JacocoPlugin)
 

@@ -2,10 +2,13 @@
  * Copyright (c) teris.io & Oleg Sklyar, 2017. All rights reserved
  */
 
-include(":rpc")
-include(":serialization-json")
-include(":vertx")
-include(":jms")
-include(":amqp")
+include(":kite")
+include(":kite-gson")
+include(":kite-fasterxml")
+
+include(":kite-rpc")
+include(":kite-rpc-vertx")
+include(":kite-rpc-jms")
+include(":kite-rpc-amqp")
 
 include(":integration-tests")

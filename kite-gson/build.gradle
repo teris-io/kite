@@ -1,0 +1,13 @@
+/*
+ * Copyright (c) teris.io & Oleg Sklyar, 2017. All rights reserved
+ */
+
+plugins.apply(JavaPlugin)
+
+dependencies {
+	compileOnly(findbugsModule)
+	compile(project(":kite"))
+	compile(gsonModule)
+
+	testCompile(junitModule)
+}
