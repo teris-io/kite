@@ -12,3 +12,6 @@ build/
 gradle.properties
 
 .vertx/
+
+MANIFEST.MF
+build.properties
