@@ -1,4 +1,4 @@
-![kite logo](https://raw.githubusercontent.com/teris-io/kite/master/kite.png)
+![kite logo](https://github.com/teris-io/kite/raw/master/kite.png)
 
 # kite - service-based RPC, public APIs and PubSub in Java
 
@@ -18,16 +18,16 @@ All interfaces and implementations are fully reactive including the RPC and (de)
 The collections consist of the following production-ready libraries (released to
 `jcenter`):
 
-- [*] `kite` -- the core defintion library. Provides `@Service`, `@Name`, `Context` as well as 
+- [x] `kite` -- the core defintion library. Provides `@Service`, `@Name`, `Context` as well as 
  `Serializer` and `Deserializer` interfaces;
-- [*] `kite-rpc` -- the RPC and public API implementation with pluggable serialization and 
+- [x] `kite-rpc` -- the RPC and public API implementation with pluggable serialization and 
  transport. Provides the `ServiceFactory` interface and implementation to obtain client
  side service proxies, the `ServiceExporter` interface and implementation to export
  service implementation on the server side to a given transport and the `ServiceInvoker`
  interface used in conjuncion with the given transport to construct instances of 
  `ServiceFactory`. Plain Java 8 w/o further dependencies;
-- [*] `kite-gson` -- the (default) implementation of JSON (de)serialization with `Gson.
-- [*] `kite-rpc-vertx` -- the Vert.x based HTTP transport layer for the client and server
+- [x] `kite-gson` -- the (default) implementation of JSON (de)serialization with `Gson.
+- [x] `kite-rpc-vertx` -- the Vert.x based HTTP transport layer for the client and server
  sides. Provides `HttpServiceInvoker` that implements `ServiceInvoker` over HTTP(S) 
  and `HttpServiceExporter` that exports service implementations bound to one or 
  a few generic `ServiceExporter`s as HTTPS POST endpoints;
@@ -39,10 +39,10 @@ The following libraries are under development or not yet ready for production
  `ObjectMapper` rather than `Gson`. The implementation has two outstanding gaps:
  enum name-based deserialzation does not work without a `toString` method, encodings
  other than UTF-8 are not supported for strings;
-- [*] `kite-rpc-amqp` -- a provisional RPC implementation for the RabbitMQ variant of `AMQP`.
+- [x] `kite-rpc-amqp` -- a provisional RPC implementation for the RabbitMQ variant of `AMQP`.
  The implementation is fully functional, however, more work needs to be done on
  the reconnection and parameter tuning;
-- [*] `kite-rpc-jms` -- a provisional RPC implementation for the JMS1.1. The integration test
+- [x] `kite-rpc-jms` -- a provisional RPC implementation for the JMS1.1. The integration test
  is performed with ActiveMQ.
 - [ ] `kite-pubsub` -- under development, not yet publicly available (ETA March 2018);
 - [ ] `kite-pubsub-vertx` -- under development, not yet publicly available (ETA April 2018);
