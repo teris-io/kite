@@ -30,7 +30,7 @@ ext {
 }
 
 allprojects {
-	version = "0.5.0"
+	version = "0.5.1"
 	group = "io.teris.kite"
 
 	plugins.apply(JacocoPlugin)

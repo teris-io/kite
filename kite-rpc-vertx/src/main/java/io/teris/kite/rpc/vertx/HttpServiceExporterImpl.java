@@ -22,16 +22,18 @@ class HttpServiceExporterImpl implements HttpServiceExporter {
 
 	private final String uriPrefix;
 
-	private final List<Handler<RoutingContext>> preconditioners = new ArrayList<>();
+	private final List<Handler<RoutingContext>> preprocessors = new ArrayList<>();
+
+	private final Handler<RoutingContext> bodyHandler;
 
 	private final boolean caseSensitive;
 
-	HttpServiceExporterImpl(Router router, String uriPrefix, List<Handler<RoutingContext>> preconditioners, boolean caseSensitive) {
+	HttpServiceExporterImpl(Router router, String uriPrefix, Handler<RoutingContext> bodyHandler, List<Handler<RoutingContext>> preprocessors, boolean caseSensitive) {
 		this.router = router;
 		this.uriPrefix = uriPrefix;
+		this.bodyHandler = bodyHandler;
 		this.caseSensitive = caseSensitive;
-		this.preconditioners.add(BodyHandler.create());
-		this.preconditioners.addAll(preconditioners);
+		this.preprocessors.addAll(preprocessors);
 	}
 
 	static class ServiceRouterImpl implements ServiceRouter {
@@ -40,10 +42,11 @@ class HttpServiceExporterImpl implements HttpServiceExporter {
 
 		private String uriPrefix = null;
 
-		private final List<Handler<RoutingContext>> preconditioners = new ArrayList<>();
+		private Handler<RoutingContext> bodyHandler = BodyHandler.create();
+
+		private final List<Handler<RoutingContext>> preprocessors = new ArrayList<>();
 
 		private boolean caseSensitive = false;
-
 
 		ServiceRouterImpl(Router router) {
 			this.router = router;
@@ -58,6 +61,20 @@ class HttpServiceExporterImpl implements HttpServiceExporter {
 
 		@Nonnull
 		@Override
+		public ServiceRouter bodyHandler(@Nonnull Handler<RoutingContext> bodyHandler) {
+			this.bodyHandler = bodyHandler;
+			return this;
+		}
+
+		@Nonnull
+		@Override
+		public ServiceRouter preprocessor(@Nonnull Handler<RoutingContext> preprocessor) {
+			this.preprocessors.add(preprocessor);
+			return this;
+		}
+
+		@Nonnull
+		@Override
 		public ServiceRouter caseSensitive() {
 			this.caseSensitive = true;
 			return this;
@@ -66,7 +83,7 @@ class HttpServiceExporterImpl implements HttpServiceExporter {
 		@Nonnull
 		@Override
 		public HttpServiceExporter export(@Nonnull ServiceExporter serviceExporter) {
-			return new HttpServiceExporterImpl(router, uriPrefix, preconditioners, caseSensitive)
+			return new HttpServiceExporterImpl(router, uriPrefix, bodyHandler, preprocessors, caseSensitive)
 				.export(serviceExporter);
 		}
 	}
@@ -84,8 +101,9 @@ class HttpServiceExporterImpl implements HttpServiceExporter {
 			else {
 				route = router.postWithRegex("(?i)" + uri);
 			}
-			for (Handler<RoutingContext> preconditioner: preconditioners) {
-				route = route.handler(preconditioner);
+			route = route.handler(bodyHandler);
+			for (Handler<RoutingContext> preprocessor: preprocessors) {
+				route = route.handler(preprocessor);
 			}
 			route.handler(dispatchingHandler);
 		}

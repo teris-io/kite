@@ -9,8 +9,10 @@ import javax.annotation.Nonnull;
 
 import io.teris.kite.rpc.ServiceExporter;
 import io.teris.kite.rpc.vertx.HttpServiceExporterImpl.ServiceRouterImpl;
+import io.vertx.core.Handler;
 import io.vertx.core.Vertx;
 import io.vertx.ext.web.Router;
+import io.vertx.ext.web.RoutingContext;
 
 
 /**
@@ -47,6 +49,19 @@ public interface HttpServiceExporter {
 		 */
 		@Nonnull
 		ServiceRouter uriPrefix(@Nonnull String uriPrefix);
+
+		/**
+		 * Defines a custom body handler, which is added as the very first handler.
+		 */
+		@Nonnull
+		ServiceRouter bodyHandler(@Nonnull Handler<RoutingContext> bodyHandler);
+
+		/**
+		 * Adds an ordered routing context pre-processing handler after the body handler,
+		 * but before registering the business logic handler.
+		 */
+		@Nonnull
+		ServiceRouter preprocessor(@Nonnull Handler<RoutingContext> preprocessor);
 
 		/**
 		 * Should URIs be case sensitive (the library provides routes in lower case) and

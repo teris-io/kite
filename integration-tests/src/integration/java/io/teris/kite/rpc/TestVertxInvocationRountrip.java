@@ -4,6 +4,7 @@
 
 package io.teris.kite.rpc;
 
+import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
 import java.util.concurrent.CompletableFuture;
@@ -24,6 +25,7 @@ import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientOptions;
 import io.vertx.core.http.HttpServer;
 import io.vertx.core.http.HttpServerOptions;
+import io.vertx.ext.web.handler.BodyHandler;
 
 
 public class TestVertxInvocationRountrip extends AbstractInvocationTestsuite {
@@ -56,6 +58,11 @@ public class TestVertxInvocationRountrip extends AbstractInvocationTestsuite {
 		throwingService = creator.newInstance(ThrowingService.class);
 
 		HttpServiceExporter exporter = HttpServiceExporter.router(vertx)
+			.bodyHandler(BodyHandler.create().setBodyLimit(10000000))
+			.preprocessor((ctx) -> {
+				ctx.put("x-preprocessor", "acted");
+				ctx.next();
+			})
 			.export(exporter1)
 			.export(exporter2);
 
@@ -107,4 +114,11 @@ public class TestVertxInvocationRountrip extends AbstractInvocationTestsuite {
 		}
 	}
 
+	@Test
+	public void roundtrip_preprocessor_success() {
+		Context context = new Context();
+		Double res = syncService.plus(context, Double.valueOf(341.2), Double.valueOf(359.3));
+		assertEquals(700.5, res.doubleValue(), 0.001);
+		assertEquals("acted", context.get("x-preprocessor"));
+	}
 }
