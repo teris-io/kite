@@ -64,7 +64,10 @@ class ExportedServiceHandler extends RoutingBase implements Handler<RoutingConte
 				// it is expected that all exceptions are serialized as normal response (unless exactly that failed)
 				if (t instanceof Exception || entry == null) {
 					t = t instanceof CompletionException && t.getCause() != null ? t.getCause() : t;
-					String message = t != null ? t.getMessage() : "Server error: null response in the service future";
+					String message = t != null ? t.getMessage() : null;
+					if (message == null || message.trim().length() == 0) {
+						message = "Server error: null response";
+					}
 					int statusCode = t instanceof AuthenticationException ? 403 : 500;
 					log.trace("status=SERVER-ERROR, corrId={}, target={}, message={}", corrId, uri, message);
 					httpResponse
