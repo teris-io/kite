@@ -69,7 +69,7 @@ class ExportedServiceHandler extends RoutingBase implements Handler<RoutingConte
 						message = "Server error: null response";
 					}
 					int statusCode = t instanceof AuthenticationException ? 403 : 500;
-					log.trace("status=SERVER-ERROR, corrId={}, target={}, message={}", corrId, uri, message);
+					log.info("status=SERVER-ERROR, corrId={}, target={}, message={}", corrId, uri, message);
 					httpResponse
 						.setStatusCode(statusCode)
 						.setStatusMessage(message)

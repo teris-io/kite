@@ -7,9 +7,9 @@
 		</layout>
 	</appender>
 
-	<logger name="io.teris.rpc" level="error" />
+	<logger name="io.teris.rpc" level="debug" />
 
-	<root level="error">
+	<root level="debug">
 		<appender-ref ref="STDOUT" />
 	</root>
 </configuration>

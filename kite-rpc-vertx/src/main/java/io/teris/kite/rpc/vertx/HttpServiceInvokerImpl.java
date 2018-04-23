@@ -5,14 +5,17 @@
 package io.teris.kite.rpc.vertx;
 
 import java.util.AbstractMap.SimpleEntry;
+import java.util.Map;
 import java.util.Map.Entry;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.netty.handler.codec.http.cookie.ClientCookieDecoder;
 import io.teris.kite.Context;
 import io.teris.kite.rpc.AuthenticationException;
 import io.teris.kite.rpc.NotFoundException;
@@ -20,6 +23,7 @@ import io.teris.kite.rpc.TechnicalException;
 import io.vertx.core.buffer.Buffer;
 import io.vertx.core.http.HttpClient;
 import io.vertx.core.http.HttpClientRequest;
+import io.vertx.core.http.HttpHeaders;
 
 
 class HttpServiceInvokerImpl extends RoutingBase implements HttpServiceInvoker {
@@ -27,6 +31,8 @@ class HttpServiceInvokerImpl extends RoutingBase implements HttpServiceInvoker {
 	private static final Logger log = LoggerFactory.getLogger(HttpServiceInvoker.class);
 
 	private final HttpClient httpClient;
+
+	private final Map<String, String> cookieStore = new ConcurrentHashMap<>();
 
 	HttpServiceInvokerImpl(HttpClient httpClient, String uriPrefix) {
 		super(uriPrefix);
@@ -70,6 +76,7 @@ class HttpServiceInvokerImpl extends RoutingBase implements HttpServiceInvoker {
 		String corrId = context.get(Context.X_REQUEST_ID_KEY);
 		log.trace("status=CLIENT-SENDING, corrId={}, target={}", corrId, uri);
 		CompletableFuture<Entry<Context, byte[]>> promise = new CompletableFuture<>();
+
 		HttpClientRequest httpRequest = httpClient.post(uri, httpResponse -> {
 			if (httpResponse.statusCode() == 403) {
 				promise.completeExceptionally(new AuthenticationException(httpResponse.statusMessage()));
@@ -86,7 +93,7 @@ class HttpServiceInvokerImpl extends RoutingBase implements HttpServiceInvoker {
 			else if (httpResponse.statusCode() >= 400) {
 				promise.completeExceptionally(new TechnicalException(httpResponse.statusMessage()));
 				log.error("status=CLIENT-ERROR, corrId={}, target={}, httpcode={}, message={}", corrId, uri,
-					Integer.valueOf(httpResponse.statusCode()), httpResponse.statusMessage());
+					httpResponse.statusCode(), httpResponse.statusMessage());
 				return;
 			}
 			log.trace("status=CLIENT-RECEIVING, corrId={}, target={}", corrId, uri);
@@ -94,6 +101,12 @@ class HttpServiceInvokerImpl extends RoutingBase implements HttpServiceInvoker {
 			for (String headerKey: httpResponse.headers().names()) {
 				incomingContext.put(headerKey, httpResponse.getHeader(headerKey));
 			}
+
+			for (String cookieText : httpResponse.cookies()) {
+				String cookieName = ClientCookieDecoder.STRICT.decode(cookieText).name();
+				cookieStore.put(cookieName, cookieText);
+			}
+
 			httpResponse.bodyHandler(buffer -> {
 				promise.complete(new SimpleEntry<>(incomingContext, buffer != null ? buffer.getBytes() : null));
 				log.debug("status=CLIENT-COMPLETED, corrId={}, target={}", corrId, uri);
@@ -102,6 +115,8 @@ class HttpServiceInvokerImpl extends RoutingBase implements HttpServiceInvoker {
 		for (Entry<String, String> entry : context.entrySet()) {
 			httpRequest.putHeader(entry.getKey(), entry.getValue());
 		}
+		httpRequest.putHeader(HttpHeaders.COOKIE.toString(), cookieStore.values());
+
 		httpRequest.exceptionHandler(t -> {
 			promise.completeExceptionally(new TechnicalException("request exception", t));
 			log.error(String.format("status=CLIENT-ERROR, corrId=%s, target=%s", corrId, uri), t);
