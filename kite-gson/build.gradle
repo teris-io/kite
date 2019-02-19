@@ -5,6 +5,8 @@
 plugins.apply(JavaPlugin)
 plugins.apply(nox.OSGi)
 
+version = "0.6.1"
+
 jar.manifest {
 	spec(group + "." + name, version)
 }

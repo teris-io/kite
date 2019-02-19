@@ -50,6 +50,9 @@ public class JsonSerializer implements Serializer {
 	@Nonnull
 	@Override
 	public String contentType() {
+		if (charset != null) {
+			return CONTENT_TYPE + "; charset=" + charset.name();
+		}
 		return CONTENT_TYPE;
 	}
 
